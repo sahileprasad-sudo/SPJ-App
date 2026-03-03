@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>States of India Practice Lab</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
+    :root {
+      --bg: #0b1023;
+      --panel: #0f172a;
+      --panel-2: rgba(255, 255, 255, 0.04);
+      --muted: #9ca3af;
+      --text: #e5e7eb;
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+      --accent-3: #fcd34d;
+      --error: #f87171;
+      --radius: 16px;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.12), transparent 20%),
+                  radial-gradient(circle at 80% 10%, rgba(34, 197, 94, 0.10), transparent 22%),
+                  radial-gradient(circle at 40% 80%, rgba(250, 204, 21, 0.10), transparent 24%),
+                  var(--bg);
+      overflow-x: hidden;
+    }
+    .bg-orb {
+      position: fixed;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      filter: blur(110px);
+      opacity: 0.5;
+      z-index: 0;
+      animation: drift 28s ease-in-out infinite alternate;
+    }
+    .bg-orb.a { background: #38bdf8; top: -80px; left: -80px; }
+    .bg-orb.b { background: #22c55e; bottom: -120px; right: -60px; animation-delay: 6s; }
+    .bg-orb.c { background: #facc15; bottom: 120px; left: 60px; animation-delay: 3s; }
+    @keyframes drift {
+      from { transform: translate3d(0, 0, 0) scale(1); }
+      to { transform: translate3d(30px, -40px, 0) scale(1.05); }
+    }
+    .noise {
+      position: fixed;
+      inset: 0;
+      background-image: linear-gradient(transparent 70%, rgba(255, 255, 255, 0.04));
+      pointer-events: none;
+      opacity: 0.45;
+      mix-blend-mode: screen;
+      animation: grain 1.6s steps(4) infinite;
+      z-index: 1;
+    }
+    @keyframes grain {
+      0% { transform: translate(0, 0); }
+      20% { transform: translate(-5px, 4px); }
+      40% { transform: translate(6px, -3px); }
+      60% { transform: translate(4px, 6px); }
+      80% { transform: translate(-4px, -4px); }
+      100% { transform: translate(0, 0); }
+    }
+    .app {
+      position: relative;
+      z-index: 2;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 36px 24px 64px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      font-size: 20px;
+    }
+    .brand .logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #38bdf8, #22c55e);
+      color: #0b1023;
+      font-weight: 800;
+      box-shadow: 0 12px 30px rgba(34, 197, 94, 0.35);
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .panel {
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 26px;
+      position: relative;
+      overflow: hidden;
+    }
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.06), rgba(34, 197, 94, 0.06));
+      opacity: 0.6;
+      filter: blur(80px);
+      z-index: 0;
+    }
+    .panel > * { position: relative; z-index: 1; }
+    .screen {
+      display: none;
+      gap: 18px;
+    }
+    .screen.active { display: grid; }
+    h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
+    h1 { font-size: clamp(28px, 4vw, 36px); }
+    h2 { font-size: 22px; }
+    p { color: var(--muted); line-height: 1.5; margin: 6px 0 14px; }
+    .btn {
+      cursor: pointer;
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #38bdf8, #22c55e);
+      color: #0b1023;
+      box-shadow: 0 12px 32px rgba(34, 197, 94, 0.28);
+      transition: transform 0.1s ease, box-shadow 0.15s ease;
+    }
+    .btn:active { transform: translateY(1px) scale(0.99); }
+    .btn.secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      box-shadow: none;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .btn.ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+    .grid.two { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    label {
+      color: var(--muted);
+      font-weight: 600;
+      display: block;
+      margin-bottom: 6px;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.12s ease, box-shadow 0.12s ease;
+    }
+    input:focus, select:focus {
+      border-color: rgba(56, 189, 248, 0.55);
+      box-shadow: 0 0 0 5px rgba(56, 189, 248, 0.18);
+    }
+    .state-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      margin-top: 12px;
+    }
+    .state-card {
+      position: relative;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 14px 14px 14px 46px;
+      overflow: hidden;
+      transition: border-color 0.12s ease, transform 0.12s ease;
+    }
+    .state-card:hover { border-color: rgba(56, 189, 248, 0.6); transform: translateY(-2px); }
+    .state-card input {
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      width: 20px;
+      height: 20px;
+    }
+    .state-card small { color: var(--muted); }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.14);
+      color: #befae1;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+    .question-card {
+      position: relative;
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 16px;
+      padding: 28px;
+      overflow: hidden;
+      min-height: 280px;
+    }
+    .question-card.flash-good { animation: flashGood 0.45s ease; }
+    .question-card.flash-bad { animation: flashBad 0.45s ease; }
+    @keyframes flashGood {
+      0% { box-shadow: 0 0 0 rgba(34, 197, 94, 0.6); }
+      30% { box-shadow: 0 0 0 18px rgba(34, 197, 94, 0.15); }
+      100% { box-shadow: 0 0 0 rgba(34, 197, 94, 0.0); }
+    }
+    @keyframes flashBad {
+      0% { transform: translateX(0); }
+      20% { transform: translateX(-6px); }
+      40% { transform: translateX(6px); }
+      60% { transform: translateX(-3px); }
+      100% { transform: translateX(0); }
+    }
+    .question-text {
+      font-size: clamp(24px, 3.2vw, 36px);
+      font-weight: 700;
+      line-height: 1.35;
+      margin: 0 0 20px;
+      padding: 16px 0;
+    }
+    .options {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+    .option {
+      text-align: left;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.12s ease;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .option:hover { border-color: rgba(56, 189, 248, 0.55); transform: translateY(-1px); }
+    .option.correct { border-color: rgba(34, 197, 94, 0.8); background: rgba(34, 197, 94, 0.12); }
+    .option.wrong { border-color: rgba(248, 113, 113, 0.8); background: rgba(248, 113, 113, 0.08); }
+    .status-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+    }
+    .status-tile {
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      display: grid;
+      gap: 4px;
+    }
+    .status-label { color: var(--muted); font-size: 13px; }
+    .status-value { font-weight: 800; font-size: 18px; }
+    .ticker {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px dashed rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .progress {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(135deg, #38bdf8, #22c55e);
+      transition: width 0.25s ease;
+    }
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+    .report-table th, .report-table td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+    }
+    .report-table th { color: var(--text); }
+    .pill.green { background: rgba(34, 197, 94, 0.18); color: #c2fbd7; }
+    .pill.red { background: rgba(248, 113, 113, 0.18); color: #ffd3d3; }
+    .floating-dots {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .dot {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(56, 189, 248, 0.25);
+      animation: floatDot 8s linear infinite;
+    }
+    @keyframes floatDot {
+      from { transform: translateY(0); opacity: 0.9; }
+      to { transform: translateY(-140px); opacity: 0; }
+    }
+    @media (max-width: 560px) {
+      .app { padding: 22px 14px 42px; }
+      .panel { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-orb a"></div>
+  <div class="bg-orb b"></div>
+  <div class="bg-orb c"></div>
+  <div class="noise"></div>
+
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">IN</div>
+        States of India Practice Lab
+      </div>
+      <span class="pill">Interactive · sounds · animations</span>
+    </header>
+
+    <main class="grid">
+      <section class="panel screen active" id="screen-title">
+        <div class="floating-dots" aria-hidden="true"></div>
+        <h1>Title screen</h1>
+        <p>Welcome to the States of India practice adventure. Work through maps, capitals, culture, weather and travel facts with lively sounds and motion to keep learners engaged.</p>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+          <span class="pill" id="language-chip">Language: English</span>
+          <button class="btn secondary" id="btn-lang-en">English</button>
+          <button class="btn secondary" id="btn-lang-hi">हिन्दी</button>
+          <button class="btn secondary" id="btn-lang-mr">मराठी</button>
+        </div>
+        <div class="grid two">
+          <div>
+            <div class="badge">New</div>
+            <h2>States of India</h2>
+            <p>Identify states by picture, capitals, exports, languages, food, festivals, clothing, weather and the best time to visit.</p>
+          </div>
+          <div class="status-row">
+            <div class="status-tile">
+              <div class="status-label">Includes</div>
+              <div class="status-value">Right/Wrong sounds</div>
+            </div>
+            <div class="status-tile">
+              <div class="status-label">Noise & Animation</div>
+              <div class="status-value">Glows + floating dots</div>
+            </div>
+            <div class="status-tile">
+              <div class="status-label">Reports</div>
+              <div class="status-value">Downloadable CSV</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+          <button class="btn" id="btn-title-next">Get started</button>
+          <button class="btn ghost" id="btn-title-demo">See a demo question</button>
+        </div>
+      </section>
+
+      <section class="panel screen" id="screen-login">
+        <h2>Login / identify yourself</h2>
+        <p>Enter a name and date so we can tag your practice session.</p>
+        <div class="grid two">
+          <div>
+            <label for="student-name">Your name</label>
+            <input id="student-name" type="text" placeholder="e.g., Aanya Verma" autocomplete="off" />
+          </div>
+          <div>
+            <label for="session-date">Date</label>
+            <input id="session-date" type="date" />
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+          <button class="btn" id="btn-login-next">Submit & continue</button>
+          <button class="btn secondary" id="btn-login-back">Back</button>
+        </div>
+        <div class="ticker" id="login-hint">Tip: this info will appear on the final report.</div>
+      </section>
+
+      <section class="panel screen" id="screen-choose">
+        <h2>Choose your practice states</h2>
+        <p>Select the states you want to study. We’ll pull random questions from the list you pick.</p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+          <button class="btn secondary" id="btn-select-all">Select all</button>
+          <button class="btn secondary" id="btn-clear-all">Clear</button>
+        </div>
+        <div class="state-grid" id="state-grid"></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+          <button class="btn" id="btn-start-practice">Start practice</button>
+          <button class="btn secondary" id="btn-choose-back">Back</button>
+        </div>
+        <div class="ticker">
+          <span>After selecting states, the app will pick one at random and move straight into practice.</span>
+        </div>
+      </section>
+
+      <section class="panel screen" id="screen-practice">
+        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
+          <div>
+            <div class="badge">States Practice</div>
+            <h2 id="practice-title">States Practice</h2>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <div class="pill" id="pill-student"></div>
+            <div class="pill" id="pill-date"></div>
+            <div class="pill" id="pill-category"></div>
+          </div>
+        </div>
+
+        <div class="status-row">
+          <div class="status-tile">
+            <div class="status-label">Time spent</div>
+            <div class="status-value" id="stat-time">0:00</div>
+          </div>
+          <div class="status-tile">
+            <div class="status-label">Score</div>
+            <div class="status-value" id="stat-score">0 right / 0 total</div>
+          </div>
+          <div class="status-tile">
+            <div class="status-label">Accuracy</div>
+            <div class="status-value" id="stat-accuracy">—</div>
+          </div>
+          <div class="status-tile">
+            <div class="status-label">States in play</div>
+            <div class="status-value" id="stat-states">0</div>
+        </div>
+      </div>
+
+        <div class="question-card" id="question-card">
+          <div>
+            <div class="question-text" id="question-text">Loading question...</div>
+            <div class="options" id="options"></div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+              <button class="btn secondary" id="btn-skip">Skip</button>
+              <button class="btn ghost" id="btn-end">Finish & see report</button>
+            </div>
+            <div class="ticker">
+              <div class="pill">Noise</div>
+              <span id="fact">We add moving dots and glow to keep eyes engaged. Answers also play quick right/wrong sounds.</span>
+            </div>
+            <div class="progress" style="margin-top:12px;"><span id="progress-bar"></span></div>
+          </div>
+      </div>
+      </section>
+
+      <section class="panel screen" id="screen-report">
+        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
+          <div>
+            <div class="badge">Final Report</div>
+            <h2>Session summary</h2>
+            <p>Includes time spent, which states you studied, right/wrong counts, and the most missed category. Download to email or save for students.</p>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" id="btn-download">Download report (PDF)</button>
+            <button class="btn secondary" id="btn-restart">Restart</button>
+            <button class="btn" id="btn-play-again">Play again</button>
+          </div>
+      </div>
+
+        <div class="status-row" style="margin-top:10px;">
+          <div class="status-tile">
+            <div class="status-label">Learner</div>
+            <div class="status-value" id="report-name">—</div>
+          </div>
+          <div class="status-tile">
+            <div class="status-label">Date</div>
+            <div class="status-value" id="report-date">—</div>
+          </div>
+          <div class="status-tile">
+            <div class="status-label">Time spent</div>
+            <div class="status-value" id="report-time">—</div>
+          </div>
+          <div class="status-tile">
+            <div class="status-label">Most missed category</div>
+            <div class="status-value" id="report-missed">—</div>
+          </div>
+    </div>
+
+        <table class="report-table" id="report-table">
+          <thead>
+            <tr><th>State</th><th>Right</th><th>Wrong</th><th>Accuracy</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const screens = {
+      title: document.getElementById("screen-title"),
+      login: document.getElementById("screen-login"),
+      choose: document.getElementById("screen-choose"),
+      practice: document.getElementById("screen-practice"),
+      report: document.getElementById("screen-report"),
+    };
+
+    const studentNameInput = document.getElementById("student-name");
+    const sessionDateInput = document.getElementById("session-date");
+    const stateGrid = document.getElementById("state-grid");
+    const practiceTitle = document.getElementById("practice-title");
+    const questionCard = document.getElementById("question-card");
+    const questionText = document.getElementById("question-text");
+    const optionsEl = document.getElementById("options");
+    const factEl = document.getElementById("fact");
+    const progressBar = document.getElementById("progress-bar");
+    const reportTable = document.getElementById("report-table").querySelector("tbody");
+
+    const pillStudent = document.getElementById("pill-student");
+    const pillDate = document.getElementById("pill-date");
+    const pillCategory = document.getElementById("pill-category");
+
+    const statTime = document.getElementById("stat-time");
+    const statScore = document.getElementById("stat-score");
+    const statAccuracy = document.getElementById("stat-accuracy");
+    const statStates = document.getElementById("stat-states");
+
+    const reportName = document.getElementById("report-name");
+    const reportDate = document.getElementById("report-date");
+    const reportTime = document.getElementById("report-time");
+    const reportMissed = document.getElementById("report-missed");
+
+    const facts = [
+      "Fun fact: Kerala leads India in literacy and lush backwaters.",
+      "Did you know? Rajasthan houses the Thar Desert and grand forts.",
+      "Maharashtra exports autos, films, and amazing street food.",
+      "West Bengal is famous for Durga Puja and sondesh sweets.",
+      "Gujarat’s Gir Forest is the only home of Asiatic lions.",
+      "Karnataka’s tech hub Bengaluru is called India’s Silicon Valley.",
+      "Assam grows world-famous tea in its emerald estates.",
+      "Punjab is the land of bhangra, lassi, and golden mustard fields.",
+      "Tamil Nadu temples glow with gopurams and vibrant kolams."
+    ];
+
+    // Lightweight drawn blobs per state so maps/photos are always present without placeholders or external fetches.
+    function seededRand(seed) {
+      let x = Math.imul(0x27d4eb2d, seed ^ 0xa529);
+      return () => {
+        x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+        return (x >>> 0) / 0xffffffff;
+      };
+    }
+
+    function blobImage(label, hueShift = 0) {
+      const seed = Array.from(label).reduce((a, c) => a + c.charCodeAt(0), 0) + hueShift;
+      const rand = seededRand(seed);
+      const cx = 300, cy = 180, rBase = 120;
+      const points = [];
+      for (let i = 0; i < 14; i++) {
+        const t = (i / 14) * Math.PI * 2;
+        const wobble = 0.35 + rand() * 0.5;
+        const r = rBase * wobble;
+        const x = cx + Math.cos(t) * r;
+        const y = cy + Math.sin(t) * r * (0.75 + rand() * 0.25);
+        points.push([x.toFixed(1), y.toFixed(1)]);
+      }
+      const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${p[0]},${p[1]}`).join(" ") + " Z";
+      const hue = (seed * 17 + hueShift * 53) % 360;
+      const hue2 = (hue + 40) % 360;
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='600' height='360' viewBox='0 0 600 360'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop stop-color='hsl(${hue},75%,60%)' offset='0'/><stop stop-color='hsl(${hue2},65%,55%)' offset='1'/></linearGradient></defs><rect width='600' height='360' fill='#0f172a'/><path d='${path}' fill='url(%23g)' opacity='0.9' stroke='rgba(255,255,255,0.1)' stroke-width='3'/></svg>`;
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    }
+
+    const statesData = [
+      { name: "Andhra Pradesh", capital: "Amaravati", languages: ["Telugu"], exports: ["Rice", "IT services"], food: "Pesarattu & Gongura", festival: "Ugadi", clothing: "Pochampally saree, panche", tourist: "Araku Valley", weather: "Hot summers, humid coast", bestTime: "November to February", map: "https://dummyimage.com/600x360/111827/38bdf8&text=Andhra+Pradesh+map" },
+      { name: "Arunachal Pradesh", capital: "Itanagar", languages: ["English", "Hindi"], exports: ["Bamboo products"], food: "Thukpa & Momos", festival: "Losar", clothing: "Monpa robes", tourist: "Tawang Monastery", weather: "Cool, heavy rain", bestTime: "October to April", map: "https://dummyimage.com/600x360/111827/22c55e&text=Arunachal+Pradesh+map" },
+      { name: "Assam", capital: "Dispur", languages: ["Assamese", "Bodo"], exports: ["Tea", "Petroleum"], food: "Assamese Thali with Khar", festival: "Bihu", clothing: "Mekhela Chador, dhoti", tourist: "Kaziranga National Park", weather: "Humid subtropical, heavy rain", bestTime: "November to April", map: "https://dummyimage.com/600x360/111827/ef9fbc&text=Assam+map" },
+      { name: "Bihar", capital: "Patna", languages: ["Hindi", "Maithili"], exports: ["Agro products", "Handloom"], food: "Litti Chokha", festival: "Chhath Puja", clothing: "Tussar silk, dhoti", tourist: "Nalanda ruins", weather: "Hot summers, cool winters", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/f97316&text=Bihar+map" },
+      { name: "Chhattisgarh", capital: "Raipur", languages: ["Hindi", "Chhattisgarhi"], exports: ["Steel", "Power"], food: "Chila & Bafauri", festival: "Hareli", clothing: "Kosa silk, dhoti", tourist: "Chitrakote Falls", weather: "Hot summers, mild winters", bestTime: "November to February", map: "https://dummyimage.com/600x360/111827/34d399&text=Chhattisgarh+map" },
+      { name: "Goa", capital: "Panaji", languages: ["Konkani", "Marathi"], exports: ["Iron ore", "Seafood"], food: "Fish Curry & Bebinca", festival: "Carnival", clothing: "Kunbi saree", tourist: "Calangute Beach", weather: "Tropical, heavy monsoon", bestTime: "November to February", map: "https://dummyimage.com/600x360/111827/22d3ee&text=Goa+map" },
+      { name: "Gujarat", capital: "Gandhinagar", languages: ["Gujarati", "Hindi"], exports: ["Chemicals", "Textiles"], food: "Dhokla & Thepla", festival: "Navratri Garba", clothing: "Chaniya choli, kediyu", tourist: "Statue of Unity", weather: "Hot and dry with mild winters", bestTime: "November to February", map: "https://dummyimage.com/600x360/111827/34d399&text=Gujarat+map" },
+      { name: "Haryana", capital: "Chandigarh", languages: ["Hindi", "Haryanvi"], exports: ["Automobiles", "Sports goods"], food: "Bajra Khichdi", festival: "Gangaur", clothing: "Dhoti-kurta, ghagra", tourist: "Sultanpur Bird Sanctuary", weather: "Hot summers, cold winters", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/a78bfa&text=Haryana+map" },
+      { name: "Himachal Pradesh", capital: "Shimla", languages: ["Hindi"], exports: ["Apples", "Handicrafts"], food: "Dham", festival: "Kullu Dussehra", clothing: "Woolen caps, shawls", tourist: "Manali & Rohtang", weather: "Cool, snowy winters", bestTime: "March to June / Oct to Dec", map: "https://dummyimage.com/600x360/111827/22c55e&text=Himachal+Pradesh+map" },
+      { name: "Jharkhand", capital: "Ranchi", languages: ["Hindi", "Santali"], exports: ["Minerals", "Steel"], food: "Dhuska & Rugra", festival: "Sarhul", clothing: "Tussar silk, kurta", tourist: "Betla National Park", weather: "Hot summers, mild winters", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/67e8f9&text=Jharkhand+map" },
+      { name: "Karnataka", capital: "Bengaluru", languages: ["Kannada", "English"], exports: ["IT services", "Coffee"], food: "Bisi Bele Bath & Mysore Pak", festival: "Mysuru Dasara", clothing: "Ilkal saree, panche", tourist: "Hampi ruins", weather: "Pleasant, moderate monsoon", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/67e8f9&text=Karnataka+map" },
+      { name: "Kerala", capital: "Thiruvananthapuram", languages: ["Malayalam"], exports: ["Spices", "Coconut products"], food: "Appam & Stew", festival: "Onam", clothing: "Mundu and Kasavu saree", tourist: "Alleppey backwaters", weather: "Humid and green year-round", bestTime: "September to March", map: "https://dummyimage.com/600x360/111827/22c55e&text=Kerala+map" },
+      { name: "Madhya Pradesh", capital: "Bhopal", languages: ["Hindi"], exports: ["Soya products", "Forestry"], food: "Poha & Bhutte Ka Kees", festival: "Khajuraho Dance", clothing: "Maheshwari saree", tourist: "Khajuraho Temples", weather: "Hot summers, cool winters", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/fcd34d&text=Madhya+Pradesh+map" },
+      { name: "Maharashtra", capital: "Mumbai", languages: ["Marathi", "Hindi"], exports: ["Automobiles", "Textiles"], food: "Vada Pav & Misal Pav", festival: "Ganesh Chaturthi", clothing: "Nauvari saree, dhoti-kurta", tourist: "Ajanta & Ellora Caves", weather: "Tropical with humid summers", bestTime: "October to February", map: "https://dummyimage.com/600x360/111827/38bdf8&text=Maharashtra+map" },
+      { name: "Manipur", capital: "Imphal", languages: ["Meitei", "English"], exports: ["Handloom", "Spices"], food: "Eromba", festival: "Yaoshang", clothing: "Phanek, Innaphi", tourist: "Loktak Lake", weather: "Mild, heavy rain", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/22d3ee&text=Manipur+map" },
+      { name: "Meghalaya", capital: "Shillong", languages: ["English", "Khasi"], exports: ["Coal", "Limestone"], food: "Jadoh", festival: "Wangala", clothing: "Jymphong, Jainsem", tourist: "Cherrapunji", weather: "Cool, very rainy", bestTime: "October to April", map: "https://dummyimage.com/600x360/111827/a78bfa&text=Meghalaya+map" },
+      { name: "Mizoram", capital: "Aizawl", languages: ["Mizo", "English"], exports: ["Handloom", "Bamboo"], food: "Bai stew", festival: "Chapchar Kut", clothing: "Puanchei wrap", tourist: "Phawngpui Peak", weather: "Mild, rainy", bestTime: "November to March", map: "https://dummyimage.com/600x360/111827/ef9fbc&text=Mizoram+map" },
+      { name: "Nagaland", capital: "Kohima", languages: ["English"], exports: ["Handicrafts"], food: "Smoked Pork & Bamboo Shoot", festival: "Hornbill Festival", clothing: "Tribal shawls", tourist: "Dzukou Valley", weather: "Mild, rainy", bestTime: "October to May", map: "https://dummyimage.com/600x360/111827/22c55e&text=Nagaland+map" },
+      { name: "Odisha", capital: "Bhubaneswar", languages: ["Odia"], exports: ["Minerals", "Handicrafts"], food: "Dalma & Pakhala", festival: "Rath Yatra", clothing: "Sambalpuri saree", tourist: "Konark Sun Temple", weather: "Humid, cyclonic risk", bestTime: "November to February", map: "https://dummyimage.com/600x360/111827/f97316&text=Odisha+map" },
+      { name: "Punjab", capital: "Chandigarh", languages: ["Punjabi", "Hindi"], exports: ["Agriculture", "Textiles"], food: "Sarson da Saag & Makki di Roti", festival: "Baisakhi", clothing: "Phulkari dupatta, kurta pajama", tourist: "Golden Temple, Amritsar", weather: "Hot summers, cold winters", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/22d3ee&text=Punjab+map" },
+      { name: "Rajasthan", capital: "Jaipur", languages: ["Hindi", "Rajasthani"], exports: ["Handicrafts", "Gems & jewelry"], food: "Dal Baati Churma", festival: "Desert Festival (Jaisalmer)", clothing: "Bandhani sarees, turbans", tourist: "Hawa Mahal, Jaisalmer Fort", weather: "Hot summers, cool winters", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/f97316&text=Rajasthan+map" },
+      { name: "Sikkim", capital: "Gangtok", languages: ["Nepali", "English"], exports: ["Cardamom", "Floriculture"], food: "Momo & Thukpa", festival: "Losar", clothing: "Bakhu", tourist: "Gurudongmar Lake", weather: "Cool, snowy highlands", bestTime: "March to May / Oct to Dec", map: "https://dummyimage.com/600x360/111827/34d399&text=Sikkim+map" },
+      { name: "Tamil Nadu", capital: "Chennai", languages: ["Tamil"], exports: ["Textiles", "Automobile parts"], food: "Idli, Dosa & Filter coffee", festival: "Pongal", clothing: "Kanchipuram silk saree, veshti", tourist: "Meenakshi Temple, Madurai", weather: "Tropical, warm summers", bestTime: "November to March", map: "https://dummyimage.com/600x360/111827/fcd34d&text=Tamil+Nadu+map" },
+      { name: "Telangana", capital: "Hyderabad", languages: ["Telugu", "Urdu"], exports: ["Pharma", "IT services"], food: "Hyderabadi Biryani", festival: "Bathukamma", clothing: "Pochampally saree, sherwani", tourist: "Charminar", weather: "Hot summers, mild winters", bestTime: "October to February", map: "https://dummyimage.com/600x360/111827/38bdf8&text=Telangana+map" },
+      { name: "Tripura", capital: "Agartala", languages: ["Bengali", "Kokborok"], exports: ["Rubber", "Bamboo"], food: "Mui Borok", festival: "Kharchi Puja", clothing: "Rignai & Risa", tourist: "Neermahal Palace", weather: "Humid, heavy rain", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/22d3ee&text=Tripura+map" },
+      { name: "Uttar Pradesh", capital: "Lucknow", languages: ["Hindi", "Urdu"], exports: ["Leather", "Handicrafts"], food: "Tunday Kababi & Bedmi", festival: "Kumbh Mela", clothing: "Chikan embroidery", tourist: "Taj Mahal, Agra", weather: "Hot summers, foggy winters", bestTime: "November to February", map: "https://dummyimage.com/600x360/111827/a78bfa&text=Uttar+Pradesh+map" },
+      { name: "Uttarakhand", capital: "Dehradun", languages: ["Hindi", "Garhwali"], exports: ["Herbal products"], food: "Kafuli & Aloo Ke Gutke", festival: "Ganga Dussehra", clothing: "Pichora, woolens", tourist: "Valley of Flowers", weather: "Cool, snowy mountains", bestTime: "March to June / Sep to Nov", map: "https://dummyimage.com/600x360/111827/34d399&text=Uttarakhand+map" },
+      { name: "West Bengal", capital: "Kolkata", languages: ["Bengali", "Hindi"], exports: ["Jute products", "Tea"], food: "Rosogolla & Fish curry", festival: "Durga Puja", clothing: "Tant saree, panjabi", tourist: "Victoria Memorial", weather: "Humid subtropical", bestTime: "November to February", map: "https://dummyimage.com/600x360/111827/a78bfa&text=West+Bengal+map" },
+      { name: "Jammu and Kashmir (UT)", capital: "Srinagar/Jammu", languages: ["Kashmiri", "Urdu"], exports: ["Saffron", "Dry fruits"], food: "Rogan Josh & Kahwa", festival: "Tulip Festival", clothing: "Pheran", tourist: "Dal Lake, Gulmarg", weather: "Cold winters, pleasant summers", bestTime: "March to October", map: "https://dummyimage.com/600x360/111827/22c55e&text=J%26K+UT+map" },
+      { name: "Ladakh (UT)", capital: "Leh", languages: ["Ladakhi", "English"], exports: ["Pashmina", "Apricots"], food: "Thukpa & Skyu", festival: "Hemis", clothing: "Goncha", tourist: "Pangong Lake", weather: "Cold desert, harsh winters", bestTime: "May to September", map: "https://dummyimage.com/600x360/111827/fcd34d&text=Ladakh+map" },
+      { name: "Delhi (NCT)", capital: "New Delhi", languages: ["Hindi", "English"], exports: ["IT services", "Handicrafts"], food: "Parathas & Chaat", festival: "Diwali", clothing: "Kurta, saree", tourist: "Qutub Minar, India Gate", weather: "Extreme summers, cold winters", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/38bdf8&text=Delhi+map" },
+      { name: "Puducherry (UT)", capital: "Puducherry", languages: ["Tamil", "French"], exports: ["Seafood", "Handicrafts"], food: "Pondy Creole & Tamil fare", festival: "Bastille Day parade", clothing: "Light cottons", tourist: "Promenade Beach", weather: "Tropical, humid", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/22d3ee&text=Puducherry+map" },
+      { name: "Chandigarh (UT)", capital: "Chandigarh", languages: ["Hindi", "Punjabi"], exports: ["Handicrafts"], food: "Chole Bhature", festival: "Rose Festival", clothing: "Urban casuals", tourist: "Rock Garden", weather: "Hot summers, cold winters", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/a78bfa&text=Chandigarh+map" },
+      { name: "Andaman and Nicobar Islands (UT)", capital: "Port Blair", languages: ["Hindi", "English"], exports: ["Seafood", "Coconut"], food: "Seafood Thali", festival: "Island Tourism Fest", clothing: "Light cottons", tourist: "Radhanagar Beach", weather: "Tropical, rainy", bestTime: "November to April", map: "https://dummyimage.com/600x360/111827/34d399&text=Andaman+%26+Nicobar+map" },
+      { name: "Lakshadweep (UT)", capital: "Kavaratti", languages: ["Malayalam", "English"], exports: ["Coconut products", "Fish"], food: "Tuna Curry", festival: "Id-ul-Fitr", clothing: "Light cottons", tourist: "Agatti Island", weather: "Tropical, humid", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/ef9fbc&text=Lakshadweep+map" },
+      { name: "Dadra and Nagar Haveli and Daman and Diu (UT)", capital: "Daman", languages: ["Gujarati", "Hindi"], exports: ["Plastics", "Textiles"], food: "Seafood & Prawn Curry", festival: "Nariyal Poornima", clothing: "Light cottons", tourist: "Diu Fort", weather: "Humid, warm", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/22c55e&text=Daman+Diu+map" }
+    ];
+
+    // Ensure every state has drawn images (no external fetch). Map and photo are unique blobs.
+    statesData.forEach(st => {
+      st.map = blobImage(`${st.name}-map`, 0);
+      st.photo = blobImage(`${st.name}-photo`, 60);
+      st.mapFallback = st.map;
+      st.photoFallback = st.photo;
+    });
+
+    const session = {
+      name: "",
+      date: "",
+      selectedStates: [],
+      currentQuestion: null,
+      stats: {
+        total: 0,
+      correct: 0,
+        wrong: 0,
+        perState: {},
+        perCategory: {}
+      },
+      startedAt: null,
+      timer: null,
+      factTimer: null,
+      demoMode: false,
+      mastery: {}, // tracks states answered correctly at least once
+      language: "English"
+    };
+
+    function setScreen(key) {
+      Object.values(screens).forEach(s => s.classList.remove("active"));
+      screens[key].classList.add("active");
+    }
+
+    function formatTime(ms) {
+      const totalSec = Math.floor(ms / 1000);
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      return `${min}:${sec.toString().padStart(2, "0")}`;
+    }
+
+    function shuffle(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function uniqueSample(list, count) {
+      const shuffled = shuffle(list);
+      return shuffled.slice(0, Math.max(1, Math.min(count, shuffled.length)));
+    }
+
+    function tickTimer() {
+      if (!session.startedAt) return;
+      const elapsed = Date.now() - session.startedAt;
+      statTime.textContent = formatTime(elapsed);
+    }
+
+    function startFactTicker() {
+      let idx = 0;
+      factEl.textContent = facts[0];
+      if (session.factTimer) clearInterval(session.factTimer);
+      session.factTimer = setInterval(() => {
+        idx = (idx + 1) % facts.length;
+        factEl.textContent = facts[idx];
+      }, 4200);
+    }
+
+    function buildStateGrid() {
+      stateGrid.innerHTML = "";
+      statesData.forEach((st, i) => {
+        const card = document.createElement("label");
+        card.className = "state-card";
+        card.innerHTML = `
+          <input type="checkbox" data-state="${st.name}" ${i < 4 ? "checked" : ""}/>
+          <div style="font-weight:700;">${st.name}</div>
+          <small>${st.capital} · ${st.languages[0]}</small>
+        `;
+        stateGrid.appendChild(card);
+      });
+    }
+
+    function getSelectedStates() {
+      return Array.from(stateGrid.querySelectorAll("input[type='checkbox']:checked")).map(cb => cb.dataset.state);
+    }
+
+    function setSelection(all) {
+      stateGrid.querySelectorAll("input[type='checkbox']").forEach(cb => { cb.checked = all; });
+    }
+
+    function playTone(freq = 880, duration = 180, type = "sine") {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const now = ctx.currentTime;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration / 1000);
+      osc.start(now);
+      osc.stop(now + duration / 1000 + 0.05);
+    }
+
+    function playCorrectSound() {
+      playTone(880, 180, "triangle");
+      setTimeout(() => playTone(1320, 160, "square"), 90);
+    }
+
+    function playWrongSound() {
+      playTone(180, 220, "sawtooth");
+    }
+
+    function updateStatsUI() {
+      statScore.textContent = `${session.stats.correct} right / ${session.stats.total} total`;
+      const acc = session.stats.total === 0 ? "—" : `${Math.round((session.stats.correct / session.stats.total) * 100)}%`;
+      statAccuracy.textContent = acc;
+      statStates.textContent = session.selectedStates.length;
+
+      const total = session.stats.correct + session.stats.wrong;
+      const progress = total === 0 ? 10 : Math.min(100, (session.stats.correct / Math.max(1, total)) * 100 + 5);
+      progressBar.style.width = `${progress}%`;
+    }
+
+    function randomState() {
+      const pool = session.selectedStates.length ? session.selectedStates : statesData.map(s => s.name);
+      const remaining = pool.filter(name => !session.mastery[name]);
+      const source = remaining.length ? remaining : pool;
+      const name = source[Math.floor(Math.random() * source.length)];
+      return statesData.find(s => s.name === name);
+    }
+
+    function pickCategory() {
+      const categories = ["capital", "language", "export", "festival", "food", "clothing", "tourist", "weather", "bestTime"];
+      return categories[Math.floor(Math.random() * categories.length)];
+    }
+
+    function buildOptions(correct, pool) {
+      const uniquePool = [...new Set(pool)];
+      const other = uniquePool.filter(item => item !== correct);
+      const sampled = uniqueSample(other, 3);
+      return shuffle([correct, ...sampled]);
+    }
+
+    function createQuestion() {
+      const st = randomState();
+      const category = pickCategory();
+      let question = "";
+      let answer = "";
+      let options = [];
+      let meta = [];
+      const isMapQuestion = category === "map";
+      let img = isMapQuestion ? st.map : st.photo;
+
+      switch (category) {
+        case "capital":
+          question = `What is the capital of ${st.name}?`;
+          answer = st.capital;
+          options = buildOptions(answer, statesData.map(s => s.capital));
+          meta = [`Language: ${st.languages[0]}`, `Known for: ${st.exports[0]}`];
+          practiceTitle.textContent = "State names and capitals";
+          break;
+        case "language":
+          question = `Which language is widely spoken in ${st.name}?`;
+          answer = st.languages[0];
+          options = buildOptions(answer, statesData.flatMap(s => s.languages));
+          meta = [`Capital: ${st.capital}`, `Festival: ${st.festival}`];
+          practiceTitle.textContent = "Languages of each state";
+          break;
+        case "export":
+          question = `${st.name} is well known for exporting which of these?`;
+          answer = st.exports[0];
+          options = buildOptions(answer, statesData.flatMap(s => s.exports));
+          meta = [`Capital: ${st.capital}`, `Food: ${st.food}`];
+          practiceTitle.textContent = "Key exports by state";
+          break;
+        case "festival":
+          question = `A major festival celebrated in ${st.name} is...`;
+          answer = st.festival;
+          options = buildOptions(answer, statesData.map(s => s.festival));
+          meta = [`Capital: ${st.capital}`, `Food: ${st.food}`];
+          practiceTitle.textContent = "Festivals and culture";
+          break;
+        case "food":
+          question = `Which dish is closely associated with ${st.name}?`;
+          answer = st.food;
+          options = buildOptions(answer, statesData.map(s => s.food));
+          meta = [`Festival: ${st.festival}`, `Language: ${st.languages[0]}`];
+          practiceTitle.textContent = "Food & flavors";
+          break;
+        case "clothing":
+          question = `Traditional clothing from ${st.name} is...`;
+          answer = st.clothing;
+          options = buildOptions(answer, statesData.map(s => s.clothing));
+          meta = [`Festival: ${st.festival}`, `Capital: ${st.capital}`];
+          practiceTitle.textContent = "Clothing & culture";
+          break;
+        case "tourist":
+          question = `Which is a famous tourist place in ${st.name}?`;
+          answer = st.tourist;
+          options = buildOptions(answer, statesData.map(s => s.tourist));
+          meta = [`Best time: ${st.bestTime}`, `Weather: ${st.weather}`];
+          practiceTitle.textContent = "Tourist highlights";
+          break;
+        case "weather":
+          question = `How is the typical weather in ${st.name}?`;
+          answer = st.weather;
+          options = buildOptions(answer, statesData.map(s => s.weather));
+          meta = [`Best time: ${st.bestTime}`, `Capital: ${st.capital}`];
+          practiceTitle.textContent = "Weather overview";
+          break;
+        case "bestTime":
+          question = `When is the best time to visit ${st.name}?`;
+          answer = st.bestTime;
+          options = buildOptions(answer, statesData.map(s => s.bestTime));
+          meta = [`Weather: ${st.weather}`, `Festival: ${st.festival}`];
+          practiceTitle.textContent = "Best time to visit";
+          break;
+      }
+
+      session.currentQuestion = { st, category, question, answer, options, meta, img };
+      renderQuestion();
+    }
+
+    function renderQuestion() {
+      const q = session.currentQuestion;
+      if (!q) return;
+      questionText.textContent = q.question;
+      pillCategory.textContent = `Category: ${q.category}`;
+
+      optionsEl.innerHTML = "";
+      q.options.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.className = "option";
+        btn.textContent = opt;
+        btn.addEventListener("click", () => checkAnswer(opt, btn));
+        optionsEl.appendChild(btn);
+      });
+    }
+
+    function bumpFloatingDots() {
+      const container = screens.title.querySelector(".floating-dots");
+      if (!container) return;
+      container.innerHTML = "";
+      for (let i = 0; i < 14; i++) {
+        const d = document.createElement("div");
+        d.className = "dot";
+        d.style.left = `${Math.random() * 100}%`;
+        d.style.bottom = `${Math.random() * 40}%`;
+        d.style.animationDuration = `${6 + Math.random() * 4}s`;
+        container.appendChild(d);
+      }
+    }
+
+    function checkAnswer(choice, btn) {
+      const q = session.currentQuestion;
+      if (!q) return;
+      const correct = choice === q.answer;
+
+      session.stats.total += 1;
+      if (!session.stats.perState[q.st.name]) {
+        session.stats.perState[q.st.name] = { correct: 0, wrong: 0 };
+      }
+      if (!session.stats.perCategory[q.category]) {
+        session.stats.perCategory[q.category] = { asked: 0, wrong: 0 };
+      }
+      session.stats.perCategory[q.category].asked += 1;
+
+      if (correct) {
+        session.stats.correct += 1;
+        session.stats.perState[q.st.name].correct += 1;
+        session.mastery[q.st.name] = true;
+        playCorrectSound();
+        questionCard.classList.remove("flash-bad");
+        questionCard.classList.add("flash-good");
+      } else {
+        session.stats.wrong += 1;
+        session.stats.perState[q.st.name].wrong += 1;
+        session.stats.perCategory[q.category].wrong += 1;
+        playWrongSound();
+        questionCard.classList.remove("flash-good");
+        questionCard.classList.add("flash-bad");
+      }
+
+      pillCategory.textContent = `Category: ${q.category}${correct ? " · correct" : " · wrong"}`;
+
+      optionsEl.querySelectorAll(".option").forEach(o => {
+        if (o.textContent === q.answer) o.classList.add("correct");
+        if (o === btn && !correct) o.classList.add("wrong");
+        o.disabled = true;
+      });
+
+      updateStatsUI();
+      const masteredAll = session.selectedStates.length > 0 &&
+        session.selectedStates.every(name => session.mastery[name]);
+      if (masteredAll) {
+        finishSession();
+        return;
+      }
+      setTimeout(createQuestion, 900);
+    }
+
+    function startPractice(demo = false) {
+      session.demoMode = demo;
+      session.selectedStates = demo ? statesData.slice(0, 3).map(s => s.name) : getSelectedStates();
+      session.stats = { total: 0, correct: 0, wrong: 0, perState: {}, perCategory: {} };
+      session.mastery = {};
+      session.startedAt = Date.now();
+      pillStudent.textContent = session.name ? `Student: ${session.name}` : "Student: Guest";
+      pillDate.textContent = session.date ? `Date: ${session.date}` : "Date: —";
+      updateStatsUI();
+      setScreen("practice");
+      createQuestion();
+      startFactTicker();
+      if (session.timer) clearInterval(session.timer);
+      session.timer = setInterval(tickTimer, 500);
+    }
+
+    function finishSession() {
+      const elapsed = session.startedAt ? Date.now() - session.startedAt : 0;
+      reportName.textContent = session.name || "Guest";
+      reportDate.textContent = session.date || "—";
+      reportTime.textContent = formatTime(elapsed);
+
+      const categoryEntries = Object.entries(session.stats.perCategory);
+      let mostMissed = "—";
+      if (categoryEntries.length) {
+        const sorted = categoryEntries
+          .map(([cat, data]) => ({ cat, rate: data.wrong / Math.max(1, data.asked) }))
+          .sort((a, b) => b.rate - a.rate);
+        mostMissed = `${sorted[0].cat} (${Math.round(sorted[0].rate * 100)}% wrong)`;
+      }
+      reportMissed.textContent = mostMissed;
+
+      reportTable.innerHTML = "";
+      session.selectedStates.forEach(name => {
+        const stats = session.stats.perState[name] || { correct: 0, wrong: 0 };
+        const row = document.createElement("tr");
+        const total = stats.correct + stats.wrong;
+        const acc = total ? `${Math.round((stats.correct / total) * 100)}%` : "—";
+        row.innerHTML = `<td>${name}</td><td>${stats.correct}</td><td>${stats.wrong}</td><td>${acc}</td>`;
+        reportTable.appendChild(row);
+      });
+
+      setScreen("report");
+      if (session.timer) clearInterval(session.timer);
+      if (session.factTimer) clearInterval(session.factTimer);
+    }
+
+    function downloadReport() {
+      const elapsed = session.startedAt ? Date.now() - session.startedAt : 0;
+      const summary = {
+        name: session.name || "Guest",
+        date: session.date || "—",
+        time: formatTime(elapsed),
+        right: session.stats.correct,
+        wrong: session.stats.wrong,
+        missed: reportMissed.textContent
+      };
+
+      const rows = session.selectedStates.map(name => {
+        const stats = session.stats.perState[name] || { correct: 0, wrong: 0 };
+        const total = stats.correct + stats.wrong;
+        const acc = total ? `${Math.round((stats.correct / total) * 100)}%` : "—";
+        return { name, right: stats.correct, wrong: stats.wrong, acc };
+      });
+
+      const html = `
+        <!doctype html>
+        <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>States Practice Report</title>
+          <style>
+            body { font-family: "Segoe UI", Arial, sans-serif; margin: 24px; color: #0f172a; }
+            h1 { margin: 0 0 4px; }
+            .muted { color: #4b5563; margin: 0 0 16px; }
+            .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 10px; margin: 12px 0 18px; }
+            .tile { padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 10px; background: #f8fafc; }
+            .label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
+            .value { font-weight: 700; margin-top: 2px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+            th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #e5e7eb; }
+            th { background: #f1f5f9; }
+          </style>
+        </head>
+        <body>
+          <h1>States of India Practice Report</h1>
+          <p class="muted">Downloaded on ${new Date().toLocaleString()}</p>
+          <div class="grid">
+            <div class="tile"><div class="label">Learner</div><div class="value">${summary.name}</div></div>
+            <div class="tile"><div class="label">Date</div><div class="value">${summary.date}</div></div>
+            <div class="tile"><div class="label">Time spent</div><div class="value">${summary.time}</div></div>
+            <div class="tile"><div class="label">Right / Wrong</div><div class="value">${summary.right} / ${summary.wrong}</div></div>
+            <div class="tile"><div class="label">Most missed category</div><div class="value">${summary.missed}</div></div>
+          </div>
+          <table>
+            <thead><tr><th>State</th><th>Right</th><th>Wrong</th><th>Accuracy</th></tr></thead>
+            <tbody>
+              ${rows.map(r => `<tr><td>${r.name}</td><td>${r.right}</td><td>${r.wrong}</td><td>${r.acc}</td></tr>`).join("")}
+            </tbody>
+          </table>
+        </body>
+        </html>
+      `;
+
+      const w = window.open("", "_blank", "width=900,height=700");
+      if (!w) return;
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      w.focus();
+      w.print();
+      setTimeout(() => w.close(), 500);
+    }
+
+    document.getElementById("btn-title-next").addEventListener("click", () => setScreen("login"));
+    document.getElementById("btn-title-demo").addEventListener("click", () => {
+      session.name = "Demo Learner";
+      session.date = new Date().toISOString().slice(0, 10);
+      startPractice(true);
+    });
+
+    document.getElementById("btn-login-back").addEventListener("click", () => setScreen("title"));
+    document.getElementById("btn-login-next").addEventListener("click", () => {
+      session.name = studentNameInput.value.trim() || "Guest";
+      session.date = sessionDateInput.value || new Date().toISOString().slice(0, 10);
+      setScreen("choose");
+    });
+
+    document.getElementById("btn-choose-back").addEventListener("click", () => setScreen("login"));
+    document.getElementById("btn-select-all").addEventListener("click", () => setSelection(true));
+    document.getElementById("btn-clear-all").addEventListener("click", () => setSelection(false));
+    document.getElementById("btn-start-practice").addEventListener("click", () => {
+      const selection = getSelectedStates();
+      if (!selection.length) {
+        alert("Please select at least one state to practice.");
+        return;
+      }
+      startPractice(false);
+    });
+
+    document.getElementById("btn-skip").addEventListener("click", () => createQuestion());
+    document.getElementById("btn-end").addEventListener("click", () => finishSession());
+
+    document.getElementById("btn-download").addEventListener("click", downloadReport);
+    document.getElementById("btn-restart").addEventListener("click", () => {
+      setScreen("title");
+      session.startedAt = null;
+      updateStatsUI();
+    });
+    document.getElementById("btn-play-again").addEventListener("click", () => {
+      setScreen("choose");
+      session.startedAt = null;
+      session.mastery = {};
+      session.stats = { total: 0, correct: 0, wrong: 0, perState: {}, perCategory: {} };
+      updateStatsUI();
+    });
+
+    function setLanguage(lang) {
+      session.language = lang;
+      document.getElementById("language-chip").textContent = `Language: ${lang}`;
+    }
+
+    document.getElementById("btn-lang-en").addEventListener("click", () => setLanguage("English"));
+    document.getElementById("btn-lang-hi").addEventListener("click", () => setLanguage("हिन्दी"));
+    document.getElementById("btn-lang-mr").addEventListener("click", () => setLanguage("मराठी"));
+
+    studentNameInput.addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("btn-login-next").click(); });
+    sessionDateInput.addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("btn-login-next").click(); });
+
+    buildStateGrid();
+    bumpFloatingDots();
+  </script>
+</body>
+</html>
+
