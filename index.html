@@ -231,6 +231,10 @@
       padding: 28px;
       overflow: hidden;
       min-height: 280px;
+      display: grid;
+      grid-template-columns: 1fr minmax(240px, 320px);
+      gap: 16px;
+      align-items: start;
     }
     .question-card.flash-good { animation: flashGood 0.45s ease; }
     .question-card.flash-bad { animation: flashBad 0.45s ease; }
@@ -252,6 +256,29 @@
       line-height: 1.35;
       margin: 0 0 20px;
       padding: 16px 0;
+    }
+    .question-visual {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .question-visual img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      display: block;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .question-visual .caption {
+      padding: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .question-visual .caption a {
+      color: #7dd3fc;
+      text-decoration: none;
     }
     .options {
       display: grid;
@@ -328,6 +355,44 @@
     .report-table th { color: var(--text); }
     .pill.green { background: rgba(34, 197, 94, 0.18); color: #c2fbd7; }
     .pill.red { background: rgba(248, 113, 113, 0.18); color: #ffd3d3; }
+    .picture-section {
+      margin-top: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .picture-status {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+    .picture-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 10px;
+    }
+    .picture-card {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .picture-card img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      display: block;
+    }
+    .picture-card .caption {
+      padding: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .picture-card .caption a {
+      color: #7dd3fc;
+      text-decoration: none;
+    }
     .floating-dots {
       position: absolute;
       inset: 0;
@@ -348,6 +413,7 @@
       to { transform: translateY(-140px); opacity: 0; }
     }
     @media (max-width: 560px) {
+      .question-card { grid-template-columns: 1fr; }
       .app { padding: 22px 14px 42px; }
       .panel { padding: 18px; }
     }
@@ -373,12 +439,6 @@
         <div class="floating-dots" aria-hidden="true"></div>
         <h1>Title screen</h1>
         <p>Welcome to the States of India practice adventure. Work through maps, capitals, culture, weather and travel facts with lively sounds and motion to keep learners engaged.</p>
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
-          <span class="pill" id="language-chip">Language: English</span>
-          <button class="btn secondary" id="btn-lang-en">English</button>
-          <button class="btn secondary" id="btn-lang-hi">हिन्दी</button>
-          <button class="btn secondary" id="btn-lang-mr">मराठी</button>
-        </div>
         <div class="grid two">
           <div>
             <div class="badge">New</div>
@@ -441,6 +501,11 @@
         <div class="ticker">
           <span>After selecting states, the app will pick one at random and move straight into practice.</span>
         </div>
+        <div class="picture-section">
+          <h3 style="margin:0 0 6px;">Wikimedia picture section</h3>
+          <div class="picture-status" id="picture-status">Loading state pictures from Wikimedia Commons...</div>
+          <div class="picture-grid" id="picture-grid"></div>
+        </div>
       </section>
 
       <section class="panel screen" id="screen-practice">
@@ -489,6 +554,12 @@
             </div>
             <div class="progress" style="margin-top:12px;"><span id="progress-bar"></span></div>
           </div>
+          <aside class="question-visual">
+            <img id="question-visual-image" alt="Question topic visual" />
+            <div class="caption">
+              <a id="question-visual-link" href="#" target="_blank" rel="noreferrer">Source</a>
+            </div>
+          </aside>
       </div>
       </section>
 
@@ -553,7 +624,11 @@
     const optionsEl = document.getElementById("options");
     const factEl = document.getElementById("fact");
     const progressBar = document.getElementById("progress-bar");
+    const questionVisualImage = document.getElementById("question-visual-image");
+    const questionVisualLink = document.getElementById("question-visual-link");
     const reportTable = document.getElementById("report-table").querySelector("tbody");
+    const pictureStatus = document.getElementById("picture-status");
+    const pictureGrid = document.getElementById("picture-grid");
 
     const pillStudent = document.getElementById("pill-student");
     const pillDate = document.getElementById("pill-date");
@@ -568,6 +643,8 @@
     const reportDate = document.getElementById("report-date");
     const reportTime = document.getElementById("report-time");
     const reportMissed = document.getElementById("report-missed");
+    const topicImageCache = {};
+    let activeVisualRequest = 0;
 
     const facts = [
       "Fun fact: Kerala leads India in literacy and lush backwaters.",
@@ -581,32 +658,9 @@
       "Tamil Nadu temples glow with gopurams and vibrant kolams."
     ];
 
-    // Lightweight drawn blobs per state so maps/photos are always present without placeholders or external fetches.
-    function seededRand(seed) {
-      let x = Math.imul(0x27d4eb2d, seed ^ 0xa529);
-      return () => {
-        x ^= x << 13; x ^= x >> 17; x ^= x << 5;
-        return (x >>> 0) / 0xffffffff;
-      };
-    }
-
-    function blobImage(label, hueShift = 0) {
-      const seed = Array.from(label).reduce((a, c) => a + c.charCodeAt(0), 0) + hueShift;
-      const rand = seededRand(seed);
-      const cx = 300, cy = 180, rBase = 120;
-      const points = [];
-      for (let i = 0; i < 14; i++) {
-        const t = (i / 14) * Math.PI * 2;
-        const wobble = 0.35 + rand() * 0.5;
-        const r = rBase * wobble;
-        const x = cx + Math.cos(t) * r;
-        const y = cy + Math.sin(t) * r * (0.75 + rand() * 0.25);
-        points.push([x.toFixed(1), y.toFixed(1)]);
-      }
-      const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${p[0]},${p[1]}`).join(" ") + " Z";
-      const hue = (seed * 17 + hueShift * 53) % 360;
-      const hue2 = (hue + 40) % 360;
-      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='600' height='360' viewBox='0 0 600 360'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop stop-color='hsl(${hue},75%,60%)' offset='0'/><stop stop-color='hsl(${hue2},65%,55%)' offset='1'/></linearGradient></defs><rect width='600' height='360' fill='#0f172a'/><path d='${path}' fill='url(%23g)' opacity='0.9' stroke='rgba(255,255,255,0.1)' stroke-width='3'/></svg>`;
+    function fallbackPhoto(label) {
+      const safe = label.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='600' height='360' viewBox='0 0 600 360'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop stop-color='%2338bdf8' offset='0'/><stop stop-color='%2322c55e' offset='1'/></linearGradient></defs><rect width='600' height='360' fill='%230f172a'/><rect x='14' y='14' width='572' height='332' rx='14' fill='url(%23g)' opacity='0.22'/><text x='50%' y='50%' text-anchor='middle' fill='%23e5e7eb' font-family='Inter, sans-serif' font-size='22'>${safe}</text></svg>`;
       return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     }
 
@@ -649,13 +703,134 @@
       { name: "Dadra and Nagar Haveli and Daman and Diu (UT)", capital: "Daman", languages: ["Gujarati", "Hindi"], exports: ["Plastics", "Textiles"], food: "Seafood & Prawn Curry", festival: "Nariyal Poornima", clothing: "Light cottons", tourist: "Diu Fort", weather: "Humid, warm", bestTime: "October to March", map: "https://dummyimage.com/600x360/111827/22c55e&text=Daman+Diu+map" }
     ];
 
-    // Ensure every state has drawn images (no external fetch). Map and photo are unique blobs.
-    statesData.forEach(st => {
-      st.map = blobImage(`${st.name}-map`, 0);
-      st.photo = blobImage(`${st.name}-photo`, 60);
-      st.mapFallback = st.map;
-      st.photoFallback = st.photo;
+    statesData.forEach((st) => {
+      const title = st.name.replace(" (UT)", "").replace(" (NCT)", "").trim();
+      st.photo = fallbackPhoto(st.name);
+      st.photoCreditUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
+      st.photoCreditText = "Wikimedia Commons";
     });
+
+    function wikiTitleForState(name) {
+      return name
+        .replace(" (UT)", "")
+        .replace(" (NCT)", "")
+        .trim();
+    }
+
+    async function loadWikimediaPictures() {
+      pictureStatus.textContent = "Loading state pictures from Wikimedia Commons...";
+      const jobs = statesData.map(async (st) => {
+        const title = wikiTitleForState(st.name);
+        try {
+          const resp = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
+          if (!resp.ok) throw new Error("summary failed");
+          const data = await resp.json();
+          st.photo = data?.thumbnail?.source || fallbackPhoto(st.name);
+          st.photoCreditUrl = data?.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
+          st.photoCreditText = "Wikimedia Commons (via Wikipedia)";
+        } catch {
+          st.photo = fallbackPhoto(st.name);
+          st.photoCreditUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
+          st.photoCreditText = "Wikimedia Commons";
+        }
+      });
+      await Promise.all(jobs);
+      pictureStatus.textContent = "All pictures loaded. Sources credited from Wikimedia Commons.";
+      renderPictureGrid();
+    }
+
+    function renderPictureGrid() {
+      if (!pictureGrid) return;
+      const selected = getSelectedStates();
+      const names = selected.length ? selected : statesData.map(s => s.name);
+      pictureGrid.innerHTML = names.map((name) => {
+        const st = statesData.find(s => s.name === name);
+        if (!st) return "";
+        return `<article class="picture-card">
+          <img src="${st.photo}" alt="${st.name}" />
+          <div class="caption">
+            <a href="${st.photoCreditUrl}" target="_blank" rel="noreferrer">${st.photoCreditText}</a>
+          </div>
+        </article>`;
+      }).join("");
+    }
+
+    function primaryTerm(value) {
+      if (!value) return "";
+      return value.split("&")[0].split(",")[0].trim();
+    }
+
+    function questionTopicCandidates(q) {
+      if (Array.isArray(q.visualQueries) && q.visualQueries.length) {
+        return q.visualQueries;
+      }
+      const st = q.st;
+      const answerTerms = String(q.answer || "")
+        .split("&")
+        .map((t) => t.split(",")[0].trim())
+        .filter(Boolean);
+      switch (q.category) {
+        case "food":
+          return [...answerTerms.map(t => `${t} food`), ...answerTerms, `${st.name} cuisine`, st.name];
+        case "festival":
+          return [...answerTerms.map(t => `${t} festival`), ...answerTerms, `${st.name} festival`, st.name];
+        case "tourist":
+          return [...answerTerms, `${st.name} tourism`, st.name];
+        case "export":
+          return [...answerTerms.map(t => `${t} industry`), ...answerTerms, `${st.name} economy`, st.name];
+        case "clothing":
+          return [...answerTerms.map(t => `${t} clothing`), ...answerTerms, `${st.name} traditional clothing`, st.name];
+        case "language":
+          return [...answerTerms.map(t => `${t} language`), ...answerTerms, `${st.name} language`, st.name];
+        case "capital":
+          return [q.answer, `${q.answer} city`, st.name];
+        case "bestTime":
+        case "weather":
+          return [`${st.name} weather`, `${st.name} landscape`, st.name];
+        default:
+          return [q.answer, st.name];
+      }
+    }
+
+    async function loadQuestionVisual(q) {
+      if (!q || !questionVisualImage) return;
+      const token = ++activeVisualRequest;
+      questionVisualImage.src = q.visualMode === "map" ? q.st.map : q.st.photo;
+      questionVisualLink.href = q.st.photoCreditUrl;
+
+      const candidates = questionTopicCandidates(q).filter(Boolean);
+      for (const topic of candidates) {
+        if (topicImageCache[topic]) {
+          if (token !== activeVisualRequest) return;
+          const hit = topicImageCache[topic];
+          questionVisualImage.src = hit.src;
+          questionVisualLink.href = hit.url;
+          return;
+        }
+        try {
+          const resp = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(topic)}`);
+          if (!resp.ok) continue;
+          const data = await resp.json();
+          if (!data?.thumbnail?.source) continue;
+          const hit = {
+            src: data.thumbnail.source,
+            title: data.title || topic,
+            url: data?.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(topic)}`
+          };
+          topicImageCache[topic] = hit;
+          if (token !== activeVisualRequest) return;
+          questionVisualImage.src = hit.src;
+          questionVisualLink.href = hit.url;
+          return;
+        } catch {
+          // Try next topic candidate.
+        }
+      }
+
+      if (token !== activeVisualRequest) return;
+      questionVisualImage.src = q.visualMode === "map" ? q.st.map : q.st.photo;
+      questionVisualLink.href = q.st.photoCreditUrl;
+    }
 
     const session = {
       name: "",
@@ -673,8 +848,7 @@
       timer: null,
       factTimer: null,
       demoMode: false,
-      mastery: {}, // tracks states answered correctly at least once
-      language: "English"
+      mastery: {} // tracks states answered correctly at least once
     };
 
     function setScreen(key) {
@@ -785,9 +959,173 @@
       return statesData.find(s => s.name === name);
     }
 
-    function pickCategory() {
-      const categories = ["capital", "language", "export", "festival", "food", "clothing", "tourist", "weather", "bestTime"];
-      return categories[Math.floor(Math.random() * categories.length)];
+    function questionTemplatesForState(st) {
+      return [
+        {
+          category: "map",
+          question: "Identify the state based on this map.",
+          answer: st.name,
+          pool: statesData.map(s => s.name),
+          meta: [`Capital: ${st.capital}`, `Language: ${st.languages[0]}`],
+          title: "Identify state by map",
+          visualMode: "map",
+          visualQueries: [`${st.name} map`, `${st.name} location map`]
+        },
+        {
+          category: "map",
+          question: "This map belongs to which Indian state or UT?",
+          answer: st.name,
+          pool: statesData.map(s => s.name),
+          meta: [`Festival: ${st.festival}`, `Food: ${st.food}`],
+          title: "Map recognition",
+          visualMode: "map",
+          visualQueries: [`${st.name} political map`, `${st.name} map`]
+        },
+        {
+          category: "capital",
+          question: `What is the capital of ${st.name}?`,
+          answer: st.capital,
+          pool: statesData.map(s => s.capital),
+          meta: [`Language: ${st.languages[0]}`, `Known for: ${st.exports[0]}`],
+          title: "State names and capitals"
+        },
+        {
+          category: "capital",
+          question: `Choose the correct capital city for ${st.name}.`,
+          answer: st.capital,
+          pool: statesData.map(s => s.capital),
+          meta: [`Tourist place: ${st.tourist}`, `Festival: ${st.festival}`],
+          title: "Capital challenge"
+        },
+        {
+          category: "language",
+          question: `Which language is widely spoken in ${st.name}?`,
+          answer: st.languages[0],
+          pool: statesData.flatMap(s => s.languages),
+          meta: [`Capital: ${st.capital}`, `Festival: ${st.festival}`],
+          title: "Languages of each state"
+        },
+        {
+          category: "language",
+          question: `Pick the primary language of ${st.name}.`,
+          answer: st.languages[0],
+          pool: statesData.flatMap(s => s.languages),
+          meta: [`Food: ${st.food}`, `Best time: ${st.bestTime}`],
+          title: "Language check"
+        },
+        {
+          category: "export",
+          question: `${st.name} is well known for exporting which of these?`,
+          answer: st.exports[0],
+          pool: statesData.flatMap(s => s.exports),
+          meta: [`Capital: ${st.capital}`, `Food: ${st.food}`],
+          title: "Key exports by state"
+        },
+        {
+          category: "export",
+          question: `Select a major export linked with ${st.name}.`,
+          answer: st.exports[0],
+          pool: statesData.flatMap(s => s.exports),
+          meta: [`Festival: ${st.festival}`, `Weather: ${st.weather}`],
+          title: "Export spotlight"
+        },
+        {
+          category: "festival",
+          question: `A major festival celebrated in ${st.name} is...`,
+          answer: st.festival,
+          pool: statesData.map(s => s.festival),
+          meta: [`Capital: ${st.capital}`, `Food: ${st.food}`],
+          title: "Festivals and culture"
+        },
+        {
+          category: "festival",
+          question: `Choose the festival most associated with ${st.name}.`,
+          answer: st.festival,
+          pool: statesData.map(s => s.festival),
+          meta: [`Language: ${st.languages[0]}`, `Tourist place: ${st.tourist}`],
+          title: "Festival challenge"
+        },
+        {
+          category: "food",
+          question: `Which dish is closely associated with ${st.name}?`,
+          answer: st.food,
+          pool: statesData.map(s => s.food),
+          meta: [`Festival: ${st.festival}`, `Language: ${st.languages[0]}`],
+          title: "Food and flavors"
+        },
+        {
+          category: "food",
+          question: `Pick a popular food from ${st.name}.`,
+          answer: st.food,
+          pool: statesData.map(s => s.food),
+          meta: [`Capital: ${st.capital}`, `Best time: ${st.bestTime}`],
+          title: "Cuisine quiz"
+        },
+        {
+          category: "clothing",
+          question: `Traditional clothing from ${st.name} is...`,
+          answer: st.clothing,
+          pool: statesData.map(s => s.clothing),
+          meta: [`Festival: ${st.festival}`, `Capital: ${st.capital}`],
+          title: "Clothing and culture"
+        },
+        {
+          category: "clothing",
+          question: `Select the attire linked to ${st.name}.`,
+          answer: st.clothing,
+          pool: statesData.map(s => s.clothing),
+          meta: [`Food: ${st.food}`, `Language: ${st.languages[0]}`],
+          title: "Traditional attire"
+        },
+        {
+          category: "tourist",
+          question: `Which is a famous tourist place in ${st.name}?`,
+          answer: st.tourist,
+          pool: statesData.map(s => s.tourist),
+          meta: [`Best time: ${st.bestTime}`, `Weather: ${st.weather}`],
+          title: "Tourist highlights"
+        },
+        {
+          category: "tourist",
+          question: `Pick a famous attraction from ${st.name}.`,
+          answer: st.tourist,
+          pool: statesData.map(s => s.tourist),
+          meta: [`Capital: ${st.capital}`, `Festival: ${st.festival}`],
+          title: "Tourism quiz"
+        },
+        {
+          category: "weather",
+          question: `How is the typical weather in ${st.name}?`,
+          answer: st.weather,
+          pool: statesData.map(s => s.weather),
+          meta: [`Best time: ${st.bestTime}`, `Capital: ${st.capital}`],
+          title: "Weather overview"
+        },
+        {
+          category: "weather",
+          question: `Choose the weather description that fits ${st.name}.`,
+          answer: st.weather,
+          pool: statesData.map(s => s.weather),
+          meta: [`Tourist place: ${st.tourist}`, `Food: ${st.food}`],
+          title: "Climate check"
+        },
+        {
+          category: "bestTime",
+          question: `When is the best time to visit ${st.name}?`,
+          answer: st.bestTime,
+          pool: statesData.map(s => s.bestTime),
+          meta: [`Weather: ${st.weather}`, `Festival: ${st.festival}`],
+          title: "Best time to visit"
+        },
+        {
+          category: "bestTime",
+          question: `Pick the ideal travel window for ${st.name}.`,
+          answer: st.bestTime,
+          pool: statesData.map(s => s.bestTime),
+          meta: [`Capital: ${st.capital}`, `Tourist place: ${st.tourist}`],
+          title: "Travel season quiz"
+        }
+      ];
     }
 
     function buildOptions(correct, pool) {
@@ -799,81 +1137,20 @@
 
     function createQuestion() {
       const st = randomState();
-      const category = pickCategory();
-      let question = "";
-      let answer = "";
-      let options = [];
-      let meta = [];
-      const isMapQuestion = category === "map";
-      let img = isMapQuestion ? st.map : st.photo;
-
-      switch (category) {
-        case "capital":
-          question = `What is the capital of ${st.name}?`;
-          answer = st.capital;
-          options = buildOptions(answer, statesData.map(s => s.capital));
-          meta = [`Language: ${st.languages[0]}`, `Known for: ${st.exports[0]}`];
-          practiceTitle.textContent = "State names and capitals";
-          break;
-        case "language":
-          question = `Which language is widely spoken in ${st.name}?`;
-          answer = st.languages[0];
-          options = buildOptions(answer, statesData.flatMap(s => s.languages));
-          meta = [`Capital: ${st.capital}`, `Festival: ${st.festival}`];
-          practiceTitle.textContent = "Languages of each state";
-          break;
-        case "export":
-          question = `${st.name} is well known for exporting which of these?`;
-          answer = st.exports[0];
-          options = buildOptions(answer, statesData.flatMap(s => s.exports));
-          meta = [`Capital: ${st.capital}`, `Food: ${st.food}`];
-          practiceTitle.textContent = "Key exports by state";
-          break;
-        case "festival":
-          question = `A major festival celebrated in ${st.name} is...`;
-          answer = st.festival;
-          options = buildOptions(answer, statesData.map(s => s.festival));
-          meta = [`Capital: ${st.capital}`, `Food: ${st.food}`];
-          practiceTitle.textContent = "Festivals and culture";
-          break;
-        case "food":
-          question = `Which dish is closely associated with ${st.name}?`;
-          answer = st.food;
-          options = buildOptions(answer, statesData.map(s => s.food));
-          meta = [`Festival: ${st.festival}`, `Language: ${st.languages[0]}`];
-          practiceTitle.textContent = "Food & flavors";
-          break;
-        case "clothing":
-          question = `Traditional clothing from ${st.name} is...`;
-          answer = st.clothing;
-          options = buildOptions(answer, statesData.map(s => s.clothing));
-          meta = [`Festival: ${st.festival}`, `Capital: ${st.capital}`];
-          practiceTitle.textContent = "Clothing & culture";
-          break;
-        case "tourist":
-          question = `Which is a famous tourist place in ${st.name}?`;
-          answer = st.tourist;
-          options = buildOptions(answer, statesData.map(s => s.tourist));
-          meta = [`Best time: ${st.bestTime}`, `Weather: ${st.weather}`];
-          practiceTitle.textContent = "Tourist highlights";
-          break;
-        case "weather":
-          question = `How is the typical weather in ${st.name}?`;
-          answer = st.weather;
-          options = buildOptions(answer, statesData.map(s => s.weather));
-          meta = [`Best time: ${st.bestTime}`, `Capital: ${st.capital}`];
-          practiceTitle.textContent = "Weather overview";
-          break;
-        case "bestTime":
-          question = `When is the best time to visit ${st.name}?`;
-          answer = st.bestTime;
-          options = buildOptions(answer, statesData.map(s => s.bestTime));
-          meta = [`Weather: ${st.weather}`, `Festival: ${st.festival}`];
-          practiceTitle.textContent = "Best time to visit";
-          break;
-      }
-
-      session.currentQuestion = { st, category, question, answer, options, meta, img };
+      const templates = questionTemplatesForState(st); // 20 templates per state
+      const picked = templates[Math.floor(Math.random() * templates.length)];
+      const options = buildOptions(picked.answer, picked.pool);
+      practiceTitle.textContent = picked.title;
+      session.currentQuestion = {
+        st,
+        category: picked.category,
+        question: picked.question,
+        answer: picked.answer,
+        options,
+        meta: picked.meta,
+        visualMode: picked.visualMode || "topic",
+        visualQueries: picked.visualQueries || []
+      };
       renderQuestion();
     }
 
@@ -882,6 +1159,7 @@
       if (!q) return;
       questionText.textContent = q.question;
       pillCategory.textContent = `Category: ${q.category}`;
+      loadQuestionVisual(q);
 
       optionsEl.innerHTML = "";
       q.options.forEach(opt => {
@@ -924,7 +1202,6 @@
       if (correct) {
         session.stats.correct += 1;
         session.stats.perState[q.st.name].correct += 1;
-        session.mastery[q.st.name] = true;
         playCorrectSound();
         questionCard.classList.remove("flash-bad");
         questionCard.classList.add("flash-good");
@@ -946,12 +1223,6 @@
       });
 
       updateStatsUI();
-      const masteredAll = session.selectedStates.length > 0 &&
-        session.selectedStates.every(name => session.mastery[name]);
-      if (masteredAll) {
-        finishSession();
-        return;
-      }
       setTimeout(createQuestion, 900);
     }
 
@@ -1086,6 +1357,7 @@
     document.getElementById("btn-choose-back").addEventListener("click", () => setScreen("login"));
     document.getElementById("btn-select-all").addEventListener("click", () => setSelection(true));
     document.getElementById("btn-clear-all").addEventListener("click", () => setSelection(false));
+    stateGrid.addEventListener("change", renderPictureGrid);
     document.getElementById("btn-start-practice").addEventListener("click", () => {
       const selection = getSelectedStates();
       if (!selection.length) {
@@ -1112,21 +1384,13 @@
       updateStatsUI();
     });
 
-    function setLanguage(lang) {
-      session.language = lang;
-      document.getElementById("language-chip").textContent = `Language: ${lang}`;
-    }
-
-    document.getElementById("btn-lang-en").addEventListener("click", () => setLanguage("English"));
-    document.getElementById("btn-lang-hi").addEventListener("click", () => setLanguage("हिन्दी"));
-    document.getElementById("btn-lang-mr").addEventListener("click", () => setLanguage("मराठी"));
-
     studentNameInput.addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("btn-login-next").click(); });
     sessionDateInput.addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("btn-login-next").click(); });
 
     buildStateGrid();
+    renderPictureGrid();
+    loadWikimediaPictures();
     bumpFloatingDots();
   </script>
 </body>
 </html>
-
