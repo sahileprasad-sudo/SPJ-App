@@ -746,8 +746,9 @@
       pictureGrid.innerHTML = names.map((name) => {
         const st = statesData.find(s => s.name === name);
         if (!st) return "";
+        const safeFallback = fallbackPhoto(st.name);
         return `<article class="picture-card">
-          <img src="${st.photo}" alt="${st.name}" />
+          <img src="${st.photo}" alt="${st.name}" onerror="this.onerror=null;this.src='${safeFallback}'" />
           <div class="caption">
             <a href="${st.photoCreditUrl}" target="_blank" rel="noreferrer">${st.photoCreditText}</a>
           </div>
@@ -760,6 +761,23 @@
       return value.split("&")[0].split(",")[0].trim();
     }
 
+    function topicFallbackImage(q) {
+      const icons = {
+        food: "🍛",
+        festival: "🎉",
+        tourist: "📍",
+        export: "📦",
+        clothing: "👗",
+        language: "🗣️",
+        capital: "🏙️",
+        bestTime: "🗓️",
+        weather: "⛅",
+        map: "🗺️"
+      };
+      const icon = icons[q.category] || "📘";
+      return fallbackPhoto(`${icon} ${q.answer || q.st.name}`);
+    }
+
     function questionTopicCandidates(q) {
       if (Array.isArray(q.visualQueries) && q.visualQueries.length) {
         return q.visualQueries;
@@ -770,32 +788,38 @@
         .map((t) => t.split(",")[0].trim())
         .filter(Boolean);
       switch (q.category) {
+        case "map":
+          return [`${st.name} map of India`, `${st.name} state map`, `${st.name} location map`];
         case "food":
-          return [...answerTerms.map(t => `${t} food`), ...answerTerms, `${st.name} cuisine`, st.name];
+          return [...answerTerms.map(t => `${t} Indian food`), ...answerTerms.map(t => `${t} dish`), ...answerTerms, `${st.name} cuisine`];
         case "festival":
-          return [...answerTerms.map(t => `${t} festival`), ...answerTerms, `${st.name} festival`, st.name];
+          return [...answerTerms.map(t => `${t} festival India`), ...answerTerms.map(t => `${t} celebration`), ...answerTerms, `${st.name} festival`];
         case "tourist":
-          return [...answerTerms, `${st.name} tourism`, st.name];
+          return [...answerTerms.map(t => `${t} ${st.name}`), ...answerTerms.map(t => `${t} India`), ...answerTerms];
         case "export":
-          return [...answerTerms.map(t => `${t} industry`), ...answerTerms, `${st.name} economy`, st.name];
+          return [...answerTerms.map(t => `${t} production India`), ...answerTerms.map(t => `${t} industry India`), ...answerTerms];
         case "clothing":
-          return [...answerTerms.map(t => `${t} clothing`), ...answerTerms, `${st.name} traditional clothing`, st.name];
+          return [...answerTerms.map(t => `${t} traditional clothing India`), ...answerTerms.map(t => `${t} attire`), ...answerTerms];
         case "language":
-          return [...answerTerms.map(t => `${t} language`), ...answerTerms, `${st.name} language`, st.name];
+          return [...answerTerms.map(t => `${t} language India`), ...answerTerms, `${st.name} language`];
         case "capital":
-          return [q.answer, `${q.answer} city`, st.name];
+          return [`${q.answer} city India`, `${q.answer} skyline`, q.answer];
         case "bestTime":
         case "weather":
-          return [`${st.name} weather`, `${st.name} landscape`, st.name];
+          return [`${st.name} weather`, `${st.name} climate`, `${st.name} landscape`];
         default:
-          return [q.answer, st.name];
+          return [q.answer, `${q.answer} India`, st.name];
       }
     }
 
     async function loadQuestionVisual(q) {
       if (!q || !questionVisualImage) return;
       const token = ++activeVisualRequest;
-      questionVisualImage.src = q.visualMode === "map" ? q.st.map : q.st.photo;
+      questionVisualImage.onerror = () => {
+        questionVisualImage.onerror = null;
+        questionVisualImage.src = topicFallbackImage(q);
+      };
+      questionVisualImage.src = q.visualMode === "map" ? q.st.map : topicFallbackImage(q);
       questionVisualLink.href = q.st.photoCreditUrl;
 
       const candidates = questionTopicCandidates(q).filter(Boolean);
@@ -828,7 +852,7 @@
       }
 
       if (token !== activeVisualRequest) return;
-      questionVisualImage.src = q.visualMode === "map" ? q.st.map : q.st.photo;
+      questionVisualImage.src = topicFallbackImage(q);
       questionVisualLink.href = q.st.photoCreditUrl;
     }
 
@@ -973,7 +997,7 @@
         },
         {
           category: "map",
-          question: "This map belongs to which Indian state or UT?",
+          question: "Which Indian state or UT does this map represent?",
           answer: st.name,
           pool: statesData.map(s => s.name),
           meta: [`Festival: ${st.festival}`, `Food: ${st.food}`],
