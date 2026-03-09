@@ -576,7 +576,9 @@
           </div>
           <aside class="question-visual">
             <img id="question-visual-image" alt="Question topic visual" />
-            <div class="caption"></div>
+            <div class="caption">
+              <a id="question-visual-link" href="#" target="_blank" rel="noreferrer">Wikimedia source</a>
+            </div>
           </aside>
       </div>
       </section>
@@ -644,6 +646,7 @@
     const factEl = document.getElementById("fact");
     const progressBar = document.getElementById("progress-bar");
     const questionVisualImage = document.getElementById("question-visual-image");
+    const questionVisualLink = document.getElementById("question-visual-link");
     const reportTable = document.getElementById("report-table").querySelector("tbody");
     const pictureStatus = document.getElementById("picture-status");
     const pictureGrid = document.getElementById("picture-grid");
@@ -747,9 +750,10 @@
           st.photoCreditUrl = data?.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
           st.photoCreditText = "Wikimedia Commons (via Wikipedia)";
         } catch {
-          st.photo = fallbackPhoto(st.name);
-          st.photoCreditUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
-          st.photoCreditText = "Wikimedia Commons";
+          const hit = await fetchTopicImage(`${title} India`);
+          st.photo = hit?.src || fallbackPhoto(st.name);
+          st.photoCreditUrl = hit?.url || `https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(`${title} India`)}&title=Special:MediaSearch&go=Go&type=image`;
+          st.photoCreditText = "Wikimedia Commons search";
         }
       });
       await Promise.all(jobs);
@@ -863,39 +867,55 @@
     }
 
     async function loadQuestionVisual(q) {
-      if (!q || !questionVisualImage) return;
+      if (!q || !questionVisualImage || !questionVisualLink) return;
       const token = ++activeVisualRequest;
       const candidates = questionTopicCandidates(q).filter(Boolean);
-      questionVisualImage.onerror = () => {
-        questionVisualImage.onerror = null;
-        questionVisualImage.src = topicFallbackImage(q);
+      const stateTitle = wikiTitleForState(q.st.name);
+      const searchUrl = (topic) => `https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(topic)}&title=Special:MediaSearch&go=Go&type=image`;
+      const stateSearch = searchUrl(`${stateTitle} India`);
+      const fallbackSource = q.st.photoCreditUrl || stateSearch;
+
+      const setVisual = (src, url) => {
+        questionVisualImage.src = src;
+        questionVisualLink.href = url || stateSearch;
       };
 
-      // Always keep map questions on map visuals to avoid unrelated photos.
+      questionVisualImage.onerror = () => {
+        questionVisualImage.onerror = null;
+        setVisual(q.st.photo || topicFallbackImage(q), fallbackSource);
+      };
+
       if (q.category === "map") {
-        questionVisualImage.src = q.st.map;
+        const mapSource = searchUrl(`${stateTitle} state map India`);
+        setVisual(q.st.map || topicFallbackImage(q), mapSource);
         return;
       }
 
-      questionVisualImage.src = topicFallbackImage(q);
+      setVisual(q.st.photo || topicFallbackImage(q), fallbackSource);
 
       for (const topic of candidates) {
         if (topicImageCache[topic]) {
           if (token !== activeVisualRequest) return;
           const hit = topicImageCache[topic];
-          questionVisualImage.src = hit.src;
+          setVisual(hit.src, hit.url || searchUrl(topic));
           return;
         }
         const hit = await fetchTopicImage(topic);
         if (!hit) continue;
         topicImageCache[topic] = hit;
         if (token !== activeVisualRequest) return;
-        questionVisualImage.src = hit.src;
+        setVisual(hit.src, hit.url || searchUrl(topic));
         return;
       }
 
       if (token !== activeVisualRequest) return;
-      questionVisualImage.src = topicFallbackImage(q);
+      const fallbackHit = await fetchTopicImage(`${stateTitle} India ${q.category}`);
+      if (token !== activeVisualRequest) return;
+      if (fallbackHit?.src) {
+        setVisual(fallbackHit.src, fallbackHit.url || stateSearch);
+        return;
+      }
+      setVisual(q.st.photo || topicFallbackImage(q), fallbackSource);
     }
 
     const session = {
