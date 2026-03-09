@@ -729,6 +729,7 @@
       st.photo = fallbackPhoto(st.name);
       st.photoCreditUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
       st.photoCreditText = "Wikimedia Commons";
+      st.mapCreditUrl = `https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(`${title} state map India`)}&title=Special:MediaSearch&go=Go&type=image`;
     });
 
     function wikiTitleForState(name) {
@@ -736,6 +737,45 @@
         .replace(" (UT)", "")
         .replace(" (NCT)", "")
         .trim();
+    }
+
+    async function fetchCommonsFileImage(query, mustIncludeMapWord = false) {
+      try {
+        const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrnamespace=6&gsrlimit=8&prop=imageinfo&iiprop=url&iiurlwidth=900&format=json&origin=*`;
+        const resp = await fetch(url);
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        const pages = Object.values(data?.query?.pages || {});
+        if (!pages.length) return null;
+        const ranked = pages
+          .filter((p) => p?.imageinfo?.[0]?.thumburl || p?.imageinfo?.[0]?.url)
+          .sort((a, b) => (a.index || 9999) - (b.index || 9999));
+        const match = mustIncludeMapWord
+          ? ranked.find((p) => /map|locator|location/i.test(p.title || "")) || ranked[0]
+          : ranked[0];
+        if (!match) return null;
+        const info = match.imageinfo[0];
+        return {
+          src: info.thumburl || info.url,
+          url: `https://commons.wikimedia.org/wiki/${encodeURIComponent(match.title || "")}`
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    async function fetchStateMapImage(stateTitle) {
+      const terms = [
+        `${stateTitle} locator map India`,
+        `${stateTitle} location map India`,
+        `${stateTitle} state map India`,
+        `${stateTitle} map India`
+      ];
+      for (const term of terms) {
+        const hit = await fetchCommonsFileImage(term, true);
+        if (hit?.src) return hit;
+      }
+      return null;
     }
 
     async function loadWikimediaPictures() {
@@ -754,6 +794,14 @@
           st.photo = hit?.src || fallbackPhoto(st.name);
           st.photoCreditUrl = hit?.url || `https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(`${title} India`)}&title=Special:MediaSearch&go=Go&type=image`;
           st.photoCreditText = "Wikimedia Commons search";
+        }
+
+        const mapHit = await fetchStateMapImage(title);
+        if (mapHit?.src) {
+          st.map = mapHit.src;
+          st.mapCreditUrl = mapHit.url;
+        } else {
+          st.mapCreditUrl = `https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(`${title} state map India`)}&title=Special:MediaSearch&go=Go&type=image`;
         }
       });
       await Promise.all(jobs);
@@ -887,7 +935,16 @@
 
       if (q.category === "map") {
         const mapSource = searchUrl(`${stateTitle} state map India`);
-        setVisual(q.st.map || topicFallbackImage(q), mapSource);
+        if (!q.st.map || q.st.map.includes("dummyimage.com")) {
+          const mapHit = await fetchStateMapImage(stateTitle);
+          if (token !== activeVisualRequest) return;
+          if (mapHit?.src) {
+            q.st.map = mapHit.src;
+            q.st.mapCreditUrl = mapHit.url;
+          }
+        }
+        const mapSrc = (!q.st.map || q.st.map.includes("dummyimage.com")) ? topicFallbackImage(q) : q.st.map;
+        setVisual(mapSrc, q.st.mapCreditUrl || mapSource);
         return;
       }
 
@@ -1510,3 +1567,4 @@
   </script>
 </body>
 </html>
+
