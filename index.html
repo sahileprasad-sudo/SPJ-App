@@ -462,7 +462,27 @@
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
           <button class="btn" id="btn-title-next">Get started</button>
-          <button class="btn ghost" id="btn-title-demo">See a demo question</button>
+          <button class="btn ghost" id="btn-title-how">How to play</button>
+        </div>
+      </section>
+
+      <section class="panel screen" id="screen-how">
+        <h2>How to play</h2>
+        <p>Follow these steps to use the app from start to finish.</p>
+        <ol style="margin: 8px 0 0 20px; line-height:1.7;">
+          <li>Click <strong>Get started</strong> and enter student name and date.</li>
+          <li>On the state page, select one or more states to practice.</li>
+          <li>Check the number of questions shown for each state (minimum 20).</li>
+          <li>Click <strong>Start practice</strong> to begin random questions from your selected states.</li>
+          <li>Choose one answer option for each question.</li>
+          <li>If your answer is wrong, the correct option is highlighted for review.</li>
+          <li>Questions answered correctly are not repeated again.</li>
+          <li>When all questions are answered correctly, the app automatically opens the transcript report.</li>
+          <li>Use <strong>Download report (PDF)</strong> to save or share the transcript.</li>
+        </ol>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">
+          <button class="btn" id="btn-how-start">Continue to login</button>
+          <button class="btn secondary" id="btn-how-back">Back</button>
         </div>
       </section>
 
@@ -556,9 +576,7 @@
           </div>
           <aside class="question-visual">
             <img id="question-visual-image" alt="Question topic visual" />
-            <div class="caption">
-              <a id="question-visual-link" href="#" target="_blank" rel="noreferrer">Source</a>
-            </div>
+            <div class="caption"></div>
           </aside>
       </div>
       </section>
@@ -609,6 +627,7 @@
   <script>
     const screens = {
       title: document.getElementById("screen-title"),
+      how: document.getElementById("screen-how"),
       login: document.getElementById("screen-login"),
       choose: document.getElementById("screen-choose"),
       practice: document.getElementById("screen-practice"),
@@ -625,7 +644,6 @@
     const factEl = document.getElementById("fact");
     const progressBar = document.getElementById("progress-bar");
     const questionVisualImage = document.getElementById("question-visual-image");
-    const questionVisualLink = document.getElementById("question-visual-link");
     const reportTable = document.getElementById("report-table").querySelector("tbody");
     const pictureStatus = document.getElementById("picture-status");
     const pictureGrid = document.getElementById("picture-grid");
@@ -749,9 +767,6 @@
         const safeFallback = fallbackPhoto(st.name);
         return `<article class="picture-card">
           <img src="${st.photo}" alt="${st.name}" onerror="this.onerror=null;this.src='${safeFallback}'" />
-          <div class="caption">
-            <a href="${st.photoCreditUrl}" target="_blank" rel="noreferrer">${st.photoCreditText}</a>
-          </div>
         </article>`;
       }).join("");
     }
@@ -797,7 +812,7 @@
         case "tourist":
           return [...answerTerms.map(t => `${t} ${st.name}`), ...answerTerms.map(t => `${t} India`), ...answerTerms];
         case "export":
-          return [...answerTerms.map(t => `${t} production India`), ...answerTerms.map(t => `${t} industry India`), ...answerTerms];
+          return [...answerTerms.map(t => `${t} export India`), ...answerTerms.map(t => `${t} product India`), ...answerTerms.map(t => `${t} production India`), ...answerTerms];
         case "clothing":
           return [...answerTerms.map(t => `${t} traditional clothing India`), ...answerTerms.map(t => `${t} attire`), ...answerTerms];
         case "language":
@@ -812,48 +827,75 @@
       }
     }
 
+    async function fetchTopicImage(topic) {
+      try {
+        const summary = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(topic)}`);
+        if (summary.ok) {
+          const data = await summary.json();
+          if (data?.thumbnail?.source) {
+            return {
+              src: data.thumbnail.source,
+              url: data?.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(topic)}`
+            };
+          }
+        }
+      } catch {}
+
+      try {
+        const search = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(topic)}&format=json&origin=*`);
+        if (!search.ok) return null;
+        const searchData = await search.json();
+        const titles = (searchData?.query?.search || []).slice(0, 5).map(x => x.title);
+        for (const title of titles) {
+          try {
+            const summary = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
+            if (!summary.ok) continue;
+            const data = await summary.json();
+            if (!data?.thumbnail?.source) continue;
+            return {
+              src: data.thumbnail.source,
+              url: data?.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`
+            };
+          } catch {}
+        }
+      } catch {}
+      return null;
+    }
+
     async function loadQuestionVisual(q) {
       if (!q || !questionVisualImage) return;
       const token = ++activeVisualRequest;
+      const candidates = questionTopicCandidates(q).filter(Boolean);
       questionVisualImage.onerror = () => {
         questionVisualImage.onerror = null;
         questionVisualImage.src = topicFallbackImage(q);
       };
-      questionVisualImage.src = q.visualMode === "map" ? q.st.map : topicFallbackImage(q);
-      questionVisualLink.href = q.st.photoCreditUrl;
 
-      const candidates = questionTopicCandidates(q).filter(Boolean);
+      // Always keep map questions on map visuals to avoid unrelated photos.
+      if (q.category === "map") {
+        questionVisualImage.src = q.st.map;
+        return;
+      }
+
+      questionVisualImage.src = topicFallbackImage(q);
+
       for (const topic of candidates) {
         if (topicImageCache[topic]) {
           if (token !== activeVisualRequest) return;
           const hit = topicImageCache[topic];
           questionVisualImage.src = hit.src;
-          questionVisualLink.href = hit.url;
           return;
         }
-        try {
-          const resp = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(topic)}`);
-          if (!resp.ok) continue;
-          const data = await resp.json();
-          if (!data?.thumbnail?.source) continue;
-          const hit = {
-            src: data.thumbnail.source,
-            title: data.title || topic,
-            url: data?.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(topic)}`
-          };
-          topicImageCache[topic] = hit;
-          if (token !== activeVisualRequest) return;
-          questionVisualImage.src = hit.src;
-          questionVisualLink.href = hit.url;
-          return;
-        } catch {
-          // Try next topic candidate.
-        }
+        const hit = await fetchTopicImage(topic);
+        if (!hit) continue;
+        topicImageCache[topic] = hit;
+        if (token !== activeVisualRequest) return;
+        questionVisualImage.src = hit.src;
+        return;
       }
 
       if (token !== activeVisualRequest) return;
       questionVisualImage.src = topicFallbackImage(q);
-      questionVisualLink.href = q.st.photoCreditUrl;
     }
 
     const session = {
@@ -861,6 +903,7 @@
       date: "",
       selectedStates: [],
       currentQuestion: null,
+      remainingByState: {},
       stats: {
         total: 0,
       correct: 0,
@@ -871,8 +914,7 @@
       startedAt: null,
       timer: null,
       factTimer: null,
-      demoMode: false,
-      mastery: {} // tracks states answered correctly at least once
+      demoMode: false
     };
 
     function setScreen(key) {
@@ -920,12 +962,13 @@
     function buildStateGrid() {
       stateGrid.innerHTML = "";
       statesData.forEach((st, i) => {
+        const qCount = questionTemplatesForState(st).length;
         const card = document.createElement("label");
         card.className = "state-card";
         card.innerHTML = `
           <input type="checkbox" data-state="${st.name}" ${i < 4 ? "checked" : ""}/>
           <div style="font-weight:700;">${st.name}</div>
-          <small>${st.capital} · ${st.languages[0]}</small>
+          <small>${st.capital} · ${st.languages[0]} · ${qCount} questions</small>
         `;
         stateGrid.appendChild(card);
       });
@@ -956,12 +999,14 @@
     }
 
     function playCorrectSound() {
-      playTone(880, 180, "triangle");
-      setTimeout(() => playTone(1320, 160, "square"), 90);
+      playTone(1040, 220, "triangle");
+      setTimeout(() => playTone(1320, 240, "square"), 110);
+      setTimeout(() => playTone(1560, 260, "triangle"), 230);
     }
 
     function playWrongSound() {
-      playTone(180, 220, "sawtooth");
+      playTone(140, 380, "sawtooth");
+      setTimeout(() => playTone(110, 420, "sawtooth"), 120);
     }
 
     function updateStatsUI() {
@@ -977,8 +1022,8 @@
 
     function randomState() {
       const pool = session.selectedStates.length ? session.selectedStates : statesData.map(s => s.name);
-      const remaining = pool.filter(name => !session.mastery[name]);
-      const source = remaining.length ? remaining : pool;
+      const source = pool.filter(name => (session.remainingByState[name]?.size || 0) > 0);
+      if (!source.length) return null;
       const name = source[Math.floor(Math.random() * source.length)];
       return statesData.find(s => s.name === name);
     }
@@ -997,7 +1042,7 @@
         },
         {
           category: "map",
-          question: "Which Indian state or UT does this map represent?",
+          question: "Select the state shown on this map.",
           answer: st.name,
           pool: statesData.map(s => s.name),
           meta: [`Festival: ${st.festival}`, `Food: ${st.food}`],
@@ -1161,12 +1206,26 @@
 
     function createQuestion() {
       const st = randomState();
-      const templates = questionTemplatesForState(st); // 20 templates per state
-      const picked = templates[Math.floor(Math.random() * templates.length)];
+      if (!st) {
+        finishSession();
+        return;
+      }
+      const templates = questionTemplatesForState(st).map((tpl, idx) => ({ ...tpl, id: idx })); // 20 templates per state
+      if (!session.remainingByState[st.name]) {
+        session.remainingByState[st.name] = new Set(templates.map(t => t.id));
+      }
+      const remainingIds = [...session.remainingByState[st.name]];
+      if (!remainingIds.length) {
+        finishSession();
+        return;
+      }
+      const pickedId = remainingIds[Math.floor(Math.random() * remainingIds.length)];
+      const picked = templates.find(t => t.id === pickedId);
       const options = buildOptions(picked.answer, picked.pool);
       practiceTitle.textContent = picked.title;
       session.currentQuestion = {
         st,
+        templateId: picked.id,
         category: picked.category,
         question: picked.question,
         answer: picked.answer,
@@ -1226,6 +1285,9 @@
       if (correct) {
         session.stats.correct += 1;
         session.stats.perState[q.st.name].correct += 1;
+        if (session.remainingByState[q.st.name]) {
+          session.remainingByState[q.st.name].delete(q.templateId);
+        }
         playCorrectSound();
         questionCard.classList.remove("flash-bad");
         questionCard.classList.add("flash-good");
@@ -1247,6 +1309,12 @@
       });
 
       updateStatsUI();
+      const allDone = session.selectedStates.length > 0 &&
+        session.selectedStates.every(name => (session.remainingByState[name]?.size || 0) === 0);
+      if (allDone) {
+        finishSession();
+        return;
+      }
       setTimeout(createQuestion, 900);
     }
 
@@ -1254,7 +1322,13 @@
       session.demoMode = demo;
       session.selectedStates = demo ? statesData.slice(0, 3).map(s => s.name) : getSelectedStates();
       session.stats = { total: 0, correct: 0, wrong: 0, perState: {}, perCategory: {} };
-      session.mastery = {};
+      session.remainingByState = {};
+      session.selectedStates.forEach((name) => {
+        const st = statesData.find(s => s.name === name);
+        if (!st) return;
+        const count = questionTemplatesForState(st).length;
+        session.remainingByState[name] = new Set(Array.from({ length: count }, (_, i) => i));
+      });
       session.startedAt = Date.now();
       pillStudent.textContent = session.name ? `Student: ${session.name}` : "Student: Guest";
       pillDate.textContent = session.date ? `Date: ${session.date}` : "Date: —";
@@ -1365,11 +1439,9 @@
     }
 
     document.getElementById("btn-title-next").addEventListener("click", () => setScreen("login"));
-    document.getElementById("btn-title-demo").addEventListener("click", () => {
-      session.name = "Demo Learner";
-      session.date = new Date().toISOString().slice(0, 10);
-      startPractice(true);
-    });
+    document.getElementById("btn-title-how").addEventListener("click", () => setScreen("how"));
+    document.getElementById("btn-how-start").addEventListener("click", () => setScreen("login"));
+    document.getElementById("btn-how-back").addEventListener("click", () => setScreen("title"));
 
     document.getElementById("btn-login-back").addEventListener("click", () => setScreen("title"));
     document.getElementById("btn-login-next").addEventListener("click", () => {
@@ -1403,7 +1475,7 @@
     document.getElementById("btn-play-again").addEventListener("click", () => {
       setScreen("choose");
       session.startedAt = null;
-      session.mastery = {};
+      session.remainingByState = {};
       session.stats = { total: 0, correct: 0, wrong: 0, perState: {}, perCategory: {} };
       updateStatsUI();
     });
