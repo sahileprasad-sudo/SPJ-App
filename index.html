@@ -257,6 +257,12 @@
       margin: 0 0 20px;
       padding: 16px 0;
     }
+    .question-counter {
+      margin: -6px 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
     .question-visual {
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 12px;
@@ -563,6 +569,7 @@
         <div class="question-card" id="question-card">
           <div>
             <div class="question-text" id="question-text">Loading question...</div>
+            <div class="question-counter" id="question-counter">Question 1 of 20</div>
             <div class="options" id="options"></div>
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
               <button class="btn secondary" id="btn-skip">Skip</button>
@@ -642,6 +649,7 @@
     const practiceTitle = document.getElementById("practice-title");
     const questionCard = document.getElementById("question-card");
     const questionText = document.getElementById("question-text");
+    const questionCounter = document.getElementById("question-counter");
     const optionsEl = document.getElementById("options");
     const factEl = document.getElementById("fact");
     const progressBar = document.getElementById("progress-bar");
@@ -981,6 +989,8 @@
       selectedStates: [],
       currentQuestion: null,
       remainingByState: {},
+      totalByState: {},
+      lastQuestionKey: "",
       stats: {
         total: 0,
       correct: 0,
@@ -1045,7 +1055,7 @@
         card.innerHTML = `
           <input type="checkbox" data-state="${st.name}" ${i < 4 ? "checked" : ""}/>
           <div style="font-weight:700;">${st.name}</div>
-          <small>${st.capital} · ${st.languages[0]} · ${qCount} questions</small>
+          <small>${st.capital} · ${st.languages[0]} · Target: ${qCount} questions</small>
         `;
         stateGrid.appendChild(card);
       });
@@ -1092,9 +1102,23 @@
       statAccuracy.textContent = acc;
       statStates.textContent = session.selectedStates.length;
 
+      const totalTarget = session.selectedStates.reduce((sum, name) => sum + (session.totalByState[name] || 0), 0);
+      const remaining = session.selectedStates.reduce((sum, name) => sum + (session.remainingByState[name]?.size || 0), 0);
+      const mastered = Math.max(0, totalTarget - remaining);
+      if (questionCounter) {
+        const currentNo = totalTarget ? Math.min(totalTarget, session.stats.total + 1) : 0;
+        questionCounter.textContent = totalTarget
+          ? `Question ${currentNo} of ${totalTarget} · Correctly completed ${mastered}/${totalTarget}`
+          : "Question progress will appear here.";
+      }
+
       const total = session.stats.correct + session.stats.wrong;
       const progress = total === 0 ? 10 : Math.min(100, (session.stats.correct / Math.max(1, total)) * 100 + 5);
       progressBar.style.width = `${progress}%`;
+    }
+
+    function questionTemplateKey(stateName, tpl) {
+      return `${stateName}::${tpl.category}::${tpl.question}`;
     }
 
     function randomState() {
@@ -1287,22 +1311,30 @@
         finishSession();
         return;
       }
-      const templates = questionTemplatesForState(st).map((tpl, idx) => ({ ...tpl, id: idx })); // 20 templates per state
+      const templates = questionTemplatesForState(st).map((tpl) => ({
+        ...tpl,
+        key: questionTemplateKey(st.name, tpl)
+      }));
       if (!session.remainingByState[st.name]) {
-        session.remainingByState[st.name] = new Set(templates.map(t => t.id));
+        session.remainingByState[st.name] = new Set(templates.map(t => t.key));
       }
-      const remainingIds = [...session.remainingByState[st.name]];
-      if (!remainingIds.length) {
+      const remainingKeys = [...session.remainingByState[st.name]];
+      if (!remainingKeys.length) {
         finishSession();
         return;
       }
-      const pickedId = remainingIds[Math.floor(Math.random() * remainingIds.length)];
-      const picked = templates.find(t => t.id === pickedId);
+      let pool = remainingKeys;
+      if (pool.length > 1 && session.lastQuestionKey) {
+        const withoutLast = pool.filter((key) => key !== session.lastQuestionKey);
+        if (withoutLast.length) pool = withoutLast;
+      }
+      const pickedKey = pool[Math.floor(Math.random() * pool.length)];
+      const picked = templates.find(t => t.key === pickedKey) || templates[0];
       const options = buildOptions(picked.answer, picked.pool);
       practiceTitle.textContent = picked.title;
       session.currentQuestion = {
         st,
-        templateId: picked.id,
+        templateKey: picked.key,
         category: picked.category,
         question: picked.question,
         answer: picked.answer,
@@ -1311,6 +1343,7 @@
         visualMode: picked.visualMode || "topic",
         visualQueries: picked.visualQueries || []
       };
+      session.lastQuestionKey = picked.key;
       renderQuestion();
     }
 
@@ -1363,7 +1396,7 @@
         session.stats.correct += 1;
         session.stats.perState[q.st.name].correct += 1;
         if (session.remainingByState[q.st.name]) {
-          session.remainingByState[q.st.name].delete(q.templateId);
+          session.remainingByState[q.st.name].delete(q.templateKey);
         }
         playCorrectSound();
         questionCard.classList.remove("flash-bad");
@@ -1400,11 +1433,14 @@
       session.selectedStates = demo ? statesData.slice(0, 3).map(s => s.name) : getSelectedStates();
       session.stats = { total: 0, correct: 0, wrong: 0, perState: {}, perCategory: {} };
       session.remainingByState = {};
+      session.totalByState = {};
+      session.lastQuestionKey = "";
       session.selectedStates.forEach((name) => {
         const st = statesData.find(s => s.name === name);
         if (!st) return;
-        const count = questionTemplatesForState(st).length;
-        session.remainingByState[name] = new Set(Array.from({ length: count }, (_, i) => i));
+        const templates = questionTemplatesForState(st);
+        session.totalByState[name] = templates.length;
+        session.remainingByState[name] = new Set(templates.map((tpl) => questionTemplateKey(name, tpl)));
       });
       session.startedAt = Date.now();
       pillStudent.textContent = session.name ? `Student: ${session.name}` : "Student: Guest";
@@ -1553,6 +1589,8 @@
       setScreen("choose");
       session.startedAt = null;
       session.remainingByState = {};
+      session.totalByState = {};
+      session.lastQuestionKey = "";
       session.stats = { total: 0, correct: 0, wrong: 0, perState: {}, perCategory: {} };
       updateStatsUI();
     });
@@ -1567,4 +1605,3 @@
   </script>
 </body>
 </html>
-
