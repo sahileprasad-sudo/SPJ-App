@@ -203,6 +203,11 @@
       transition: border-color 0.12s ease, transform 0.12s ease;
     }
     .state-card:hover { border-color: rgba(56, 189, 248, 0.6); transform: translateY(-2px); }
+    .state-card.selected {
+      border: 3px solid rgba(56, 189, 248, 0.95);
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.22);
+      background: rgba(56, 189, 248, 0.12);
+    }
     .state-card input {
       position: absolute;
       left: 14px;
@@ -1048,17 +1053,18 @@
 
     function buildStateGrid() {
       stateGrid.innerHTML = "";
-      statesData.forEach((st, i) => {
+      statesData.forEach((st) => {
         const qCount = questionTemplatesForState(st).length;
         const card = document.createElement("label");
         card.className = "state-card";
         card.innerHTML = `
-          <input type="checkbox" data-state="${st.name}" ${i < 4 ? "checked" : ""}/>
+          <input type="checkbox" data-state="${st.name}"/>
           <div style="font-weight:700;">${st.name}</div>
           <small>${st.capital} · ${st.languages[0]} · Target: ${qCount} questions</small>
         `;
         stateGrid.appendChild(card);
       });
+      syncStateSelectionStyles();
     }
 
     function getSelectedStates() {
@@ -1067,6 +1073,15 @@
 
     function setSelection(all) {
       stateGrid.querySelectorAll("input[type='checkbox']").forEach(cb => { cb.checked = all; });
+      syncStateSelectionStyles();
+      renderPictureGrid();
+    }
+
+    function syncStateSelectionStyles() {
+      stateGrid.querySelectorAll(".state-card").forEach((card) => {
+        const cb = card.querySelector("input[type='checkbox']");
+        card.classList.toggle("selected", Boolean(cb && cb.checked));
+      });
     }
 
     function playTone(freq = 880, duration = 180, type = "sine") {
@@ -1566,7 +1581,10 @@
     document.getElementById("btn-choose-back").addEventListener("click", () => setScreen("login"));
     document.getElementById("btn-select-all").addEventListener("click", () => setSelection(true));
     document.getElementById("btn-clear-all").addEventListener("click", () => setSelection(false));
-    stateGrid.addEventListener("change", renderPictureGrid);
+    stateGrid.addEventListener("change", () => {
+      syncStateSelectionStyles();
+      renderPictureGrid();
+    });
     document.getElementById("btn-start-practice").addEventListener("click", () => {
       const selection = getSelectedStates();
       if (!selection.length) {
